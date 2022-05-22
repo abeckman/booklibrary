@@ -1,0 +1,11 @@
+{% extends "./base_menu.html" %}
+{% block content %}
+<form action="" method="post">
+    {% csrf_token %}
+    {% load crispy_forms_tags %}
+    <table>
+        {{ form|crispy }}
+    </table>
+    <input type="submit" value="Submit" />
+</form>
+{% endblock %}

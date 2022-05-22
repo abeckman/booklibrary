@@ -1,0 +1,24 @@
+{% extends "./base_menu.html" %}
+<!-- from catalog -->
+<!-- Fonts and security from dj4e -->
+
+{% block content %}
+    <h1>Book List</h1>
+    {% if book_list %}
+    <ul>
+      {% for book in book_list %}
+      <li>
+        <a href="{{ book.get_absolute_url }}">{{ book.title }}</a> ({{ book.authors.all|join:", " }})
+        <span style="float: right;">
+        {% if perms.booklibrary.delete_book %}
+            <a href="{% url 'booklibrary:book-update' book.id %}"><i class="fa fa-pencil"></i></a>
+            <a href="{% url 'booklibrary:book-delete' book.id %}"><i class="fa fa-trash"></i></a>
+        {% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+      <p>There are no books in the library.</p>
+    {% endif %}
+{% endblock %}

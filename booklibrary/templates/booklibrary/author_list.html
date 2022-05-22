@@ -1,0 +1,34 @@
+{% extends "./base_menu.html" %}
+<!-- from catalog -->
+<!-- Fonts and security from dj4e -->
+
+{% block content %}
+
+<h1>Author List</h1>
+
+{% if author_list %}
+  <ul>
+
+  {% for author in author_list %}
+    <li>
+        <a href="{{ author.get_absolute_url }}">
+            {{ author }} ({{author.date_of_birth}} - {% if author.date_of_death %}{{author.date_of_death}}{% endif %})
+            <span style="float: right;">
+             {% if perms.booklibrary.delete_author %}
+                <a href="{% url 'booklibrary:author-update' author.id %}"><i class="fa fa-pencil"></i></a>
+                <a href="{% url 'booklibrary:author-delete' author.id %}"><i class="fa fa-trash"></i></a>
+            {% endif %}
+            </span>
+      </a>
+    </li>
+  {% endfor %}
+
+ </ul>
+{% else %}
+  <p>There are no authors available.</p>
+{% endif %}
+
+
+
+{% endblock %}
+

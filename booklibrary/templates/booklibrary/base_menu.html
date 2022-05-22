@@ -1,0 +1,99 @@
+{% extends "./base_bootstrap.html" %}
+<!-- humanize, fonts and security from dj4e -->
+{% block navbar %}
+{% load app_tags %}
+
+<nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+    <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="#">Local Library</a>
+    <button class="navbar-toggler position-absolute d-md-none collapsed" type="button"
+        data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu"
+        aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <!-- <input class="form-control form-control-dark w-100" type="text" placeholder="Search" aria-label="Search"> -->
+    <ul class="nav navbar-nav navbar-right">
+    {% if user.is_authenticated %}
+        <li class="nav-item">User: {{ user.get_username }}</li>
+        <!-- gravatar depends on app_tags being loaded -->
+        <!-- https://brobin.me/blog/2016/07/super-simple-django-gravatar/ -->
+            <img style="width: 25px;" src="{{ user|gravatar:60 }}"/>
+        <li class="nav-item"><a href="{% url 'logout'%}?next={{request.path}}">Logout</a></li>
+    {% else %}
+        <li class="nav-item"><a href="{% url 'login'%}?next={{request.path}}">Login</a></li>
+    {% endif %}
+    </ul>
+</nav>
+    <!--Navbar -->
+{% endblock navbar %}
+
+{% block sidebar %}
+<!-- Where to stick the next two lines isn't obvious. Putting them here puts them
+  after the header and they cover all but the footer where I close them. -->
+<div class="container-fluid">
+    <div class="row">
+        <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <!--
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="#">
+                            <span data-feather="home"></span>
+                            Home
+                        </a>
+                    </li>
+                    -->
+                    <!-- https://stackoverflow.com/questions/22047251/django-dynamically-get-view-url-and-check-if-its-the-current-page -->
+                    <!-- Assign output of url function to a variable named
+                      'xyz' to use in the if statement -->
+                    {% url 'booklibrary:index' as xyz %}
+                    <li class="nav-item" {% if request.get_full_path == xyz %}class="active"{% endif %}>
+                        <a href="{% url 'index' %}">Home</a></li>
+
+                    {% url 'booklibrary:books' as abc1 %}
+                    <li class="nav-item" {% if request.get_full_path == abc1 %}class="active"{% endif %}>
+                        <a href="{% url 'books' %}">All books</a></li>
+
+                    {% url 'booklibrary:authors' as abc2 %}
+                    <li class="nav-item" {% if request.get_full_path == abc2 %}class="active"{% endif %}>
+                        <a href="{% url 'authors' %}">All authors</a></li>
+                    {% url 'booklibrary:book-search' as abc3 %}
+                    <li class="nav-item" {% if request.get_full_path == abc3 %}class="active"{% endif %}>
+                        <a href="{% url 'book-search' %}">Add a book</a></li>
+                </ul>
+            </div>
+        </nav>
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+{% endblock sidebar %}
+
+{% block content %}
+{% load humanize %} <!-- https://docs.djangoproject.com/en/3.0/ref/contrib/humanize -->
+{% endblock content %}
+
+{% block pagination %}
+    {% if is_paginated %}
+    <div class="pagination">
+        <span class="page-links">
+            {% if page_obj.has_previous %}
+                <a href="{{ request.path }}?page={{ page_obj.previous_page_number }}">previous</a>
+            {% endif %}
+            <span class="page-current">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+            </span>
+            {% if page_obj.has_next %}
+                <a href="{{ request.path }}?page={{ page_obj.next_page_number }}">next</a>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+{% endblock pagination%}
+
+      <!-- FOOTER -->
+{% block footer %}
+        </main>
+    </div>
+</div>
+      <footer class="container">
+        <p class="float-end"><a href="#top">Back to top<i class="fas fa-arrow-up" aria-hidden="true"></i></a></p>
+        <p>&copy; 2022 Arthur Beckman &middot; </p>
+      </footer>
+{% endblock %}

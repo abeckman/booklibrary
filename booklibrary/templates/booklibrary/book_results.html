@@ -1,0 +1,70 @@
+{% extends "./base_menu.html" %}
+{% block content %}
+<div>
+    <h1>Search results</h1>
+
+    <p>
+        <a href="{% url 'booklibrary:books' %}" class="btn btn-info" role="button">Cancel</a>
+    </p>
+    {% if form.errors %}
+        {% for field in form %}
+            {% for error in field.errors %}
+                <div class="alert alert-danger">
+                    <strong>{{ error|escape }}</strong>
+                </div>
+            {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+            <div class="alert alert-danger">
+                <strong>{{ error|escape }}</strong>
+            </div>
+        {% endfor %}
+    {% endif %}
+<!-- https://stackoverflow.com/questions/14647723/django-forms-if-not-valid-show-form-with-error-message -->
+
+
+    <p>
+    {% for item in b %}
+	    <ul>
+		    <img src="{{ item.10 }}"></img><a id="title" class="title" href="{{ item.9 }}">{{ item.0 }}</a>
+		    <p>Authors: {{ item.1 }}, {{ item.2 }}</p>
+		    <p>Publisher: {{ item.3 }}</p>
+		    <p>Published on: {{ item.4 }}</p>
+		    <p>Genres: {{ item.6 }}, {{ item.7 }}</p>
+		    <p>Language: {{ item.8 }}</p>
+		    <i> {{ item.12 }} </i>
+		    <form method="post" action="{% url 'booklibrary:book-add' %}">
+	            {% csrf_token %}
+	            {# Include the hidden fields #}
+	            {% for hidden in form.hidden_fields %}
+                {{ hidden }}
+                {% endfor %}
+                {# Include the visible fields #}
+                {% for field in form.visible_fields %}
+                    <div class="fieldWrapper">
+                        {{ field.errors }}
+                        {{ field.label_tag }} {{ field }}
+                    </div>
+                {% endfor %}
+                <input type="hidden" id="title" name="title" value="{{ item.0 }}">
+                <input type="hidden" id="author1" name="author1" value="{{ item.1 }}">
+                <input type="hidden" id="author2" name="author2" value="{{ item.2 }}">
+                <input type="hidden" id="publisher" name="publisher" value="{{ item.3 }}">
+                <input type="hidden" id="publishedOn" name="publishedOn" value="{{ item.4 }}">
+                <input type="hidden" id="description" name="description" value="{{ item.5 }}">
+                <input type="hidden" id="genre1" name="genre1" value="{{ item.6 }}">
+                <input type="hidden" id="genre2" name="genre2" value="{{ item.7 }}">
+                <input type="hidden" id="language" name="language" value="{{ item.8 }}">
+                <input type="hidden" id="previewLink" name="previewLink" value="{{ item.9 }}">
+                <input type="hidden" id="imageLink" name="imageLink" value="{{ item.10 }}">
+                <input type="hidden" id="uniqueID" name="uniqueID" value="{{ item.11 }}">
+                <input type="hidden" id="status" name="status" value="{{ item.12 }}">
+                <button type="submit" class="btn btn-outline-info">Add to library</button>
+	        </form>
+# https://stackoverflow.com/questions/6862250/change-a-django-form-field-to-a-hidden-field
+	    </ul>
+    {% endfor %}
+    </p>
+</div>
+{% endblock %}
+<!-- https://stackoverflow.com/questions/46525406/django-saving-a-form-strips-values-so-only-the-first-word-is-saved -->
