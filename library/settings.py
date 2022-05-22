@@ -26,8 +26,7 @@ APP_NAME = 'Home Book Librarian'
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY", '1ldyeqs!3!&(4(%qjj=6mgh+bj8@cq#h*c9hiifjd_o=r9mt^p')
-
+SECRET_KEY = os.getenv("SECRET_KEY", '3k2cb-q#4iwdsi0+%hnsiwxmg(u3ngmw@r0g7%7_&97)38or&s')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = bool(strtobool(os.getenv("DEBUG", "true")))
 
