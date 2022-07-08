@@ -4,21 +4,71 @@
 
 {% block content %}
     <h1>Book List</h1>
-    {% if book_list %}
+
+    <div style="float:right">
+<!-- https://www.w3schools.com/howto/howto_css_search_button.asp -->
+        <form>
+            {% csrf_token %}
+            {% load crispy_forms_tags %}
+            <input type="text" placeholder="Search.." name="search"
+                {% if search %} value="{{ search }}" {% endif %}
+            >
+
+            <label for="fields">Search on what?:</label>
+            <select name="fields" id="fields">
+                <option value="title">Select what to search for</option>
+                <option value="title">Title</option>
+                <option value="author">Author</option>
+                <option value="genre">Genre</option>
+                <option value="series">Series</option>
+                <option value="keyword">Keyword</option>
+            </select>
+
+            <button type="submit"><i class="fa fa-search"></i></button>
+            <a href="{% url 'booklibrary:books' %}"><i class="fa fa-undo"></i></a>
+
+<!--            <br><br>
+            <input type="submit" value="Submit"> -->
+        </form>
+        <form>
+            {% csrf_token %}
+            {% load crispy_forms_tags %}
+            <br><br>
+            <input type="submit" value="List duplicate books">
+        </form>
+    </div>
+
+    {% if page_obj %}
     <ul>
-      {% for book in book_list %}
+      {% for book in page_obj %}
       <li>
         <a href="{{ book.get_absolute_url }}">{{ book.title }}</a> ({{ book.authors.all|join:", " }})
-        <span style="float: right;">
         {% if perms.booklibrary.delete_book %}
             <a href="{% url 'booklibrary:book-update' book.id %}"><i class="fa fa-pencil"></i></a>
             <a href="{% url 'booklibrary:book-delete' book.id %}"><i class="fa fa-trash"></i></a>
         {% endif %}
-        </span>
       </li>
       {% endfor %}
     </ul>
     {% else %}
       <p>There are no books in the library.</p>
     {% endif %}
+
+    <div class="pagination">
+    <span class="step-links">
+        {% if page_obj.has_previous %}
+            <a href="?page=1">&laquo; first</a>
+            <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+        {% endif %}
+
+        <span class="current">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}">next</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+        {% endif %}
+    </span>
+    </div>
 {% endblock %}

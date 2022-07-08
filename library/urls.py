@@ -16,6 +16,8 @@ from django.contrib import admin # orig
 from django.urls import include, path # from polls and catalog apps
 import os
 from django.views.static import serve
+from django.conf import settings
+from django.conf.urls.static import static
 # from django.contrib.auth import views as auth_views
 # from django.views.generic import RedirectView # from catalog
 # from django.conf import settings # from catalog for static
@@ -48,7 +50,6 @@ urlpatterns = [
 
 urlpatterns += [
     path('accounts/', include('django.contrib.auth.urls')),
-# urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) # catalog way of doing above
 ]
 
 # Serve the static HTML
@@ -60,6 +61,7 @@ urlpatterns += [
         name='site_path'
         ),
 ]
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) # catalog way of doing above
 
 # Serve the favicon - Keep for later
 urlpatterns += [
@@ -89,4 +91,3 @@ urlpatterns += [
 # References
 
 # https://docs.djangoproject.com/en/3.0/ref/urls/#include
-

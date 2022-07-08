@@ -27,8 +27,8 @@
 <p class="text-muted"><strong>Id:</strong> {{copy.id}}
     <span style="float: right;">
     {% if copy.owner == user %}
-        <a href="{% url 'booklibrary:bookinstance-update' copy.book_id %}"><i class="fa fa-pencil"></i></a>
-        <a href="{% url 'booklibrary:bookinstance-delete' copy.book_id %}"><i class="fa fa-trash"></i></a>
+        <a href="{% url 'booklibrary:bookinstance-update' copy.id %}"><i class="fa fa-pencil"></i></a>
+        <a href="{% url 'booklibrary:bookinstance-delete' copy.id %}"><i class="fa fa-trash"></i></a>
     {% endif %}
     </span>
 </p>

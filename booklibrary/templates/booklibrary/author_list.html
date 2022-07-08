@@ -5,30 +5,54 @@
 {% block content %}
 
 <h1>Author List</h1>
+    <div style="float:right">
+<!-- https://www.w3schools.com/howto/howto_css_search_button.asp -->
+        <form>
+            <input type="text" placeholder="Search.." name="search"
+                {% if search %} value="{{ search }}" {% endif %}
+            >
+            <button type="submit"><i class="fa fa-search"></i></button>
+            <a href="{% url 'booklibrary:books' %}"><i class="fa fa-undo"></i></a>
+        </form>
+    </div>
 
-{% if author_list %}
-  <ul>
-
-  {% for author in author_list %}
-    <li>
-        <a href="{{ author.get_absolute_url }}">
+{% if page_obj %} <!-- page_obj comes in from view and is the list of authors -->
+    <ul>
+        {% for author in page_obj %}
+        <li>
+            <a href="{{ author.get_absolute_url }}">
             {{ author }} ({{author.date_of_birth}} - {% if author.date_of_death %}{{author.date_of_death}}{% endif %})
             <span style="float: right;">
-             {% if perms.booklibrary.delete_author %}
-                <a href="{% url 'booklibrary:author-update' author.id %}"><i class="fa fa-pencil"></i></a>
-                <a href="{% url 'booklibrary:author-delete' author.id %}"><i class="fa fa-trash"></i></a>
-            {% endif %}
+                {% if perms.booklibrary.delete_author %}
+                    <a href="{% url 'booklibrary:author-update' author.id %}"><i class="fa fa-pencil"></i></a>
+                    <a href="{% url 'booklibrary:author-delete' author.id %}"><i class="fa fa-trash"></i></a>
+                {% endif %}
             </span>
-      </a>
-    </li>
-  {% endfor %}
-
- </ul>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
 {% else %}
   <p>There are no authors available.</p>
 {% endif %}
 
+    <div class="pagination">
+    <span class="step-links">
+        {% if page_obj.has_previous %}
+            <a href="?page=1">&laquo; first</a>
+            <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+        {% endif %}
 
+        <span class="current">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}">next</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+        {% endif %}
+    </span>
+    </div>
 
 {% endblock %}
 

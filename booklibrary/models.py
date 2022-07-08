@@ -93,6 +93,9 @@ class Book(models.Model): # from catalog. Added title validators, changed author
         """Creates a string for the Genre. This is required to display genre in Admin."""
         return ', '.join([genre.name for genre in self.genre.all()[:3]])
 
+    def bookInstance_count(self):
+        return self.bookInstance_set.count()
+
     display_genre.short_description = 'Genre'
 
     def display_authors(self):
@@ -133,7 +136,7 @@ class Author(models.Model):
     """Model representing an author."""
     full_name = models.CharField(max_length=100, null=True, blank=True)
     first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100, null=True, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
     date_of_death = models.DateField('died', null=True, blank=True)
 

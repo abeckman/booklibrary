@@ -16,9 +16,10 @@ class gbooks():
         try:
             r = requests.get(url="https://www.googleapis.com/books/v1/volumes", params=parms)
             my_json = r.json()
+            items = my_json["items"]
         except:
             return book_list
-        for i in my_json["items"]:
+        for i in items:
             book_info = []
             i['volumeInfo'].setdefault('title', 'Not Present')
             book_info.append(i['volumeInfo']['title'])

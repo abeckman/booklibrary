@@ -1,5 +1,7 @@
 {% extends "./base_menu.html" %}
 {% block content %}
+<!-- This form is shown after doing the Google book lookup.
+Will post to book-add after user picks a book -->
 <div>
     <h1>Search results</h1>
 
@@ -61,7 +63,7 @@
                 <input type="hidden" id="status" name="status" value="{{ item.12 }}">
                 <button type="submit" class="btn btn-outline-info">Add to library</button>
 	        </form>
-# https://stackoverflow.com/questions/6862250/change-a-django-form-field-to-a-hidden-field
+<!-- https://stackoverflow.com/questions/6862250/change-a-django-form-field-to-a-hidden-field -->
 	    </ul>
     {% endfor %}
     </p>

@@ -30,8 +30,9 @@ class AddForm(forms.Form):
     series = [(choice.pk, choice.name) for choice in Series.objects.all()]
     Book_Series = forms.ChoiceField(choices = series, required=False)
     keywords = [(choice.pk, choice.name) for choice in Keywords.objects.all()]
-    Book_Keywords = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple(),
-        choices = keywords, help_text="Keywords (up to 3)", required=False)
+    #Book_Keywords = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple(),
+    Book_Keywords = forms.MultipleChoiceField(choices = keywords, initial = keywords[0],
+        help_text="Keywords (up to 3)")
 # https://www.geeksforgeeks.org/choicefield-django-forms/
 # https://stackoverflow.com/questions/31035112/django-init-got-an-unexpected-keyword-argument-choices
 # https://stackoverflow.com/questions/34781524/django-populate-a-form-choicefield-field-from-a-queryset-and-relate-the-choice-b

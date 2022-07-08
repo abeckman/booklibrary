@@ -13,6 +13,8 @@ from nameparser import HumanName
 from django.db.models import Q
 import unidecode
 import os
+from django.core.paginator import Paginator # added to support pagination
+from django.contrib import messages # added to allow passing messages
 
 from django.views.generic import TemplateView
 #from django.views.generic.list import ListView
@@ -47,7 +49,99 @@ def index(request):  # slightly modifed from catalog to drop available copies
 class BookListView(generic.ListView): # from catalog
     """Generic class-based view for a list of books."""
     model = Book
+    paginate_by = 20 # this doesn't work as a variable so probably isn't needed
+    template_name = "booklibrary/book_list.html"
+
+    def get(self, request) :
+        dups = request.GET.get("List duplicate books", False)
+        fields = request.GET.get("fields", False)
+        strval =  request.GET.get("search", False)
+        if dups :
+            book_list = Book.bookInstance_count() > 1
+        if strval and (fields == "title" or not fields):
+            # we have a search request for a simple title-only search
+            query = Q(title__icontains=strval)
+            query.add(Q(summary__icontains=strval), Q.OR)
+            book_list = Book.objects.filter(query).select_related().order_by('title')
+        elif strval and fields == "author":
+            # we have a search request for author
+            # NOTE: this will require work to refine
+            query = Q(authors__last_name__icontains=strval)
+            query.add(Q(authors__first_name__icontains=strval), Q.OR)
+            book_list = Book.objects.filter(query).select_related().order_by('title')
+        elif strval and fields == "genre":
+            # we have a search request for genre
+            query = Q(genre__name__icontains=strval)
+            book_list = Book.objects.filter(query).select_related().order_by('title')
+        elif strval and fields == "series":
+            # we have a search request for series
+            query = Q(series__name__icontains=strval)
+            book_list = Book.objects.filter(query).select_related().order_by('title')
+        elif strval and fields == "keyword":
+            # we have a search request for keyword
+            query = Q(keywords__name__icontains=strval)
+            book_list = Book.objects.filter(query).select_related().order_by('title')
+        else :
+            book_list = Book.objects.all().order_by('title')
+
+            # objects = Post.objects.filter(title__contains=strval).select_related().order_by('-updated_at')[:10]
+
+            # Multi-field search
+            # __icontains for case-insensitive search
+            #query = Q(title__icontains=strval)
+            #query.add(Q(summary__icontains=strval), Q.OR)
+            #book_list = Book.objects.filter(query).select_related().order_by('title')
+
+        paginator = Paginator(book_list, 20)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        ctx = {'page_obj' : page_obj, 'search': strval}
+        return render(request, self.template_name, ctx)
+
+# References
+
+# https://docs.djangoproject.com/en/3.0/topics/db/queries/#one-to-many-relationships
+
+# Note that the select_related() QuerySet method recursively prepopulates the
+# cache of all one-to-many relationships ahead of time.
+
+# sql “LIKE” equivalent in django query
+# https://stackoverflow.com/questions/18140838/sql-like-equivalent-in-django-query
+
+# How do I do an OR filter in a Django query?
+# https://stackoverflow.com/questions/739776/how-do-i-do-an-or-filter-in-a-django-query
+
+# https://stackoverflow.com/questions/1074212/how-can-i-see-the-raw-sql-queries-django-is-running
+
+
+class GenreListView(generic.ListView): # from catalog
+    """Generic class-based list view for a list of Genre."""
+    model = Genre
     paginate_by = 20
+    template_name = "booklibrary/genre_list.html"
+
+    def get(self, request) :
+        strval =  request.GET.get("search", False)
+        if strval :
+            # Simple title-only search
+            # objects = Post.objects.filter(title__contains=strval).select_related().order_by('-updated_at')[:10]
+
+            # Multi-field search
+            # __icontains for case-insensitive search
+            query = Q(name__icontains=strval)
+#        query.add(Q(summary__icontains=strval), Q.OR)
+            genre_list = Genre.objects.filter(query).select_related().order_by('name')
+        else :
+            genre_list = Genre.objects.all().order_by('name')
+        test = 0
+        if test :
+                messages.add_message(request, messages.INFO, 'testing, testing')
+
+        paginator = Paginator(genre_list, 20)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        ctx = {'page_obj' : page_obj, 'search': strval}
+        return render(request, self.template_name, ctx)
 
 
 class BookDetailView(generic.DetailView): # from catalog
@@ -72,6 +166,7 @@ class BookSearchView(TemplateView):
         a = gbooks(volume)
         b = a.search()          # search is defined in book_search.py
         if (b ==[]):
+# This is pretty crude. Should add code to send a message and return to the search page
                 return HttpResponse("No Books Found", status= 401)
         else:
             saved_genre = request.session.get('repeat_genre', 'None')
@@ -86,6 +181,27 @@ class AuthorListView(generic.ListView): # from catalog
     """Generic class-based list view for a list of authors."""
     model = Author
     paginate_by = 20
+    template_name = "booklibrary/author_list.html"
+
+    def get(self, request) :
+        strval =  request.GET.get("search", False)
+        if strval :
+            # Simple title-only search
+            # objects = Post.objects.filter(title__contains=strval).select_related().order_by('-updated_at')[:10]
+
+            # Multi-field search
+            # __icontains for case-insensitive search
+            query = Q(last_name__icontains=strval)
+#        query.add(Q(summary__icontains=strval), Q.OR)
+            author_list = Author.objects.filter(query).select_related().order_by('last_name')
+        else :
+            author_list = Author.objects.all().order_by('last_name')
+
+        paginator = Paginator(author_list, 20)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        ctx = {'page_obj' : page_obj, 'search': strval}
+        return render(request, self.template_name, ctx)
 
 class AuthorDetailView(generic.DetailView): # from catalog
     """Generic class-based detail view for an author."""
@@ -171,7 +287,9 @@ def add_book(request):
             myBook, created = Book.objects.filter(Q(uniqueID__icontains = myuniqueID)).get_or_create(
                     title = mytitle, summary = mydescription, publisher = mypublisher,
                     publishedDate = mypublishedOn, previewLink = mypreviewLink, imageLink = myimageLink,
-                    uniqueID = myuniqueID, contentType = "PHY")
+                    uniqueID = myuniqueID, contentType = "PH")
+            if not created : # we have a duplicate book
+                messages.add_message(request, messages.INFO, 'Duplicate book')
 # Existing code deals with duplicate by adding a new instance. Probably should
 #   flag the repeat and offer to add a book instance
             if (myauthor1 and myauthor1 != "None"):
@@ -231,13 +349,13 @@ def add_book(request):
                 myBook.language = mylanguageObject
                 # The following gets "'NoneType' object has no attribute 'add'"
                 #myBook.language.add(mylanguageObject)
-            if (myBook_Series and myBook_Series != "None"):
+            if myBook_Series:
                 mySeriesObject, created = Series.objects.filter(
                     Q(name = myBook_Series)).get_or_create(name = myBook_Series)
                 myBook.series = mySeriesObject
             for keyword_id in myBook_Keywords:
                 keyword = Keywords.objects.get(id=keyword_id).name
-                if (keyword and keyword != "None"):
+                if keyword:
                     mykeywordObject, created = Keywords.objects.filter(
                         Q(name = keyword)).get_or_create(name = keyword)
                     myBook.keywords.add(mykeywordObject)
