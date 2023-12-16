@@ -51,18 +51,23 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles', # first six are default
     'django.contrib.humanize',
     'django_bootstrap_icons',
+    'taggit', # Used by newblog for tagging
     'fontawesomefree',
-#    'debug_toolbar',
     # Extensions - installed with pip3 / requirements.txt
+    "debug_toolbar",
     'django_extensions', # used to load database from CSV
     'crispy_forms',
+    "crispy_bootstrap5",
     'rest_framework',
     'social_django',
     'booklibrary.apps.BooklibraryConfig', # apps added goes here
+    'blog.apps.BlogConfig',
+    'newblog.apps.NewblogConfig',
 ]
 
 # When we get to crispy forms :)
-CRISPY_TEMPLATE_PACK = 'bootstrap4'  # Add
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -74,7 +79,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'social_django.middleware.SocialAuthExceptionMiddleware',   # Add
-#    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
 ROOT_URLCONF = 'library.urls'
@@ -229,6 +234,8 @@ AUTHENTICATION_BACKENDS = (
 LOGOUT_REDIRECT_URL = '/'
 LOGIN_REDIRECT_URL = '/' # from catalog
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # from catalog
+
+INTERNAL_IPS = ["10.0.0.75"] # for Django debug
 
 # Don't set default LOGIN_URL - let django.contrib.auth set it when it is loaded
 # LOGIN_URL = '/accounts/login'

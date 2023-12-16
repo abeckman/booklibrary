@@ -70,21 +70,8 @@
 {% endblock navbar %}
 
 {% block welcome %} {% endblock welcome %}
-
+<!--
 {% block messages %}
-    {% if messages %}
-    {% for message in messages %}
-        <div class="container-fluid p-0">
-            <div class="alert {{ message.tags }} alert-dismissible" role="alert" >
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-            <span aria-hidden="True">&times;</span>
-            </button>
-            {{ message }}
-        </div>
-    {% endfor %}
-    {% endif %}
-
-    <!--
     {% if messages %}
     <ul class="messages">
     {% for message in messages %}
@@ -92,8 +79,7 @@
     {% endfor %}
     </ul>
     {% endif %}
-    -->
-{% endblock messages %}
+{% endblock messages %} -->
 <div class="container-fluid">
     <div class="row">
 {% block sidebar %}
@@ -122,6 +108,7 @@
                     {% url 'booklibrary:authors' as abc2 %}
                     <li class="nav-item" {% if request.get_full_path == abc2 %}class="active"{% endif %}>
                         <a href="{% url 'authors' %}">All authors</a></li>
+
                     {% url 'booklibrary:book-search' as abc3 %}
                     <li class="nav-item" {% if request.get_full_path == abc3 %}class="active"{% endif %}>
                         <a href="{% url 'book-search' %}">Add a book</a></li>
@@ -133,23 +120,6 @@
 {% block content %}
 {% load humanize %} <!-- https://docs.djangoproject.com/en/3.0/ref/contrib/humanize -->
 {% endblock content %}
-{% block pagination %}
-    {% if is_paginated %}
-    <div class="pagination">
-        <span class="page-links">
-            {% if page_obj.has_previous %}
-                <a href="{{ request.path }}?page={{ page_obj.previous_page_number }}">previous</a>
-            {% endif %}
-            <span class="page-current">
-                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
-            </span>
-            {% if page_obj.has_next %}
-                <a href="{{ request.path }}?page={{ page_obj.next_page_number }}">next</a>
-            {% endif %}
-        </span>
-    </div>
-    {% endif %}
-{% endblock pagination%}
         </main>
     </div> <!-- row -->
 </div> <!-- container-fluid -->

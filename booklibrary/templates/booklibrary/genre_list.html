@@ -2,6 +2,7 @@
 <!-- Created to test Bootstrap, message, and other issues -->
 
 {% block content %}
+{% include "misc/includes/messages.html" %}
     <h1>Genre List</h1>
 
     <div style="float:right">
@@ -81,28 +82,11 @@
         {{ genre.name }}
       </li>
       {% endfor %}
+      {% include "misc/includes/pagination.html" %}
     </ul>
     {% else %}
       <p>There are no genre in the library.</p>
     {% endif %}
-
-    <div class="pagination">
-    <span class="step-links">
-        {% if page_obj.has_previous %}
-            <a href="?page=1">&laquo; first</a>
-            <a href="?page={{ page_obj.previous_page_number }}">previous</a>
-        {% endif %}
-
-        <span class="current">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
-        </span>
-
-        {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}">next</a>
-            <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
-        {% endif %}
-    </span>
-    </div>
 
 <!-- Below is from Bootstrap examples to show what works -->
     <section id="forms">

@@ -5,6 +5,7 @@ from django.core.validators import MinLengthValidator
 from django.conf import settings
 import uuid  # Required for unique book instances - from catalog
 # from datetime import date # from catalog
+from django.db.models.functions import Coalesce # for model manager to add counts
 
 # Added keywords, location and series
 
@@ -60,6 +61,12 @@ class Series(models.Model):
         """String for representing the Model object (in Admin site etc.)"""
         return self.name
 
+class BookManager(models.Manager):
+    def with_counts(self):
+        return self.annotate(
+            num_copies=Coalesce(models.Count("bookinstance"), 0)
+        )
+
 class Book(models.Model): # from catalog. Added title validators, changed author to manytomany
 # and dropped on_delete and null=True, summary - dropped max_length, added null, blank
 # dropped ISBN, dropped author from Meta ordering. Added publisher, publishedDate,
@@ -85,6 +92,7 @@ class Book(models.Model): # from catalog. Added title validators, changed author
     uniqueID = models.CharField(max_length=200, null=True, blank=True)
     contentType = models.TextField(max_length=50, help_text="Enter EBOK for ebook or PHY for physical", null = True, blank = True)
     purchaseDate = models.DateField(null=True, blank = True)
+    objects = BookManager()
 
     class Meta:
         ordering = ['title']
@@ -93,9 +101,6 @@ class Book(models.Model): # from catalog. Added title validators, changed author
         """Creates a string for the Genre. This is required to display genre in Admin."""
         return ', '.join([genre.name for genre in self.genre.all()[:3]])
 
-    def bookInstance_count(self):
-        return self.bookInstance_set.count()
-
     display_genre.short_description = 'Genre'
 
     def display_authors(self):
@@ -103,6 +108,9 @@ class Book(models.Model): # from catalog. Added title validators, changed author
         return ', '.join([authors.last_name for authors in self.authors.all()[:3]])
 
     display_authors.short_description = 'Authors'
+
+    def bookinstance_count(self):
+        return self.bookinstance_set.count()
 
     def get_absolute_url(self):
         """Returns the url to access a particular book instance."""

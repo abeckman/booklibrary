@@ -22,7 +22,7 @@ from django.conf.urls.static import static
 # from django.views.generic import RedirectView # from catalog
 # from django.conf import settings # from catalog for static
 # from django.conf.urls.static import static # from catalog for including static URL - not used?
-# import debug_toolbar
+import debug_toolbar
 
 from django.urls import re_path # suggested replacement for orig url
 
@@ -38,6 +38,8 @@ urlpatterns = [
 urlpatterns = [
     re_path(r'^admin/', admin.site.urls), # orig
     path('booklibrary/', include('booklibrary.urls')), # modified from polls app, same as catalog app
+    path('blog/', include('blog.urls')),
+    path('newblog/', include('newblog.urls')),
 #    path('__debug__/', include(debug_toolbar.urls)),
     #Add URL maps to redirect the base URL to our application
     path('', include(('booklibrary.urls', 'booklibrary'), namespace='booklibrary')),
@@ -71,6 +73,11 @@ urlpatterns += [
         }
     ),
 ]
+
+if settings.DEBUG:
+    urlpatterns += [
+        path("__debug__/", include(debug_toolbar.urls)),
+    ]
 
 # Template for search functions
 #urlpatterns += [

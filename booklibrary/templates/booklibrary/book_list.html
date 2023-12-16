@@ -3,6 +3,7 @@
 <!-- Fonts and security from dj4e -->
 
 {% block content %}
+{% include "misc/includes/messages.html" %}
     <h1>Book List</h1>
 
     <div style="float:right">
@@ -34,7 +35,7 @@
             {% csrf_token %}
             {% load crispy_forms_tags %}
             <br><br>
-            <input type="submit" value="List duplicate books">
+            <button name="dups" type="submit" value="dups">List of duplicate books</button>
         </form>
     </div>
 
@@ -49,26 +50,9 @@
         {% endif %}
       </li>
       {% endfor %}
+      {% include "misc/includes/pagination.html" %}
     </ul>
     {% else %}
       <p>There are no books in the library.</p>
     {% endif %}
-
-    <div class="pagination">
-    <span class="step-links">
-        {% if page_obj.has_previous %}
-            <a href="?page=1">&laquo; first</a>
-            <a href="?page={{ page_obj.previous_page_number }}">previous</a>
-        {% endif %}
-
-        <span class="current">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
-        </span>
-
-        {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}">next</a>
-            <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
-        {% endif %}
-    </span>
-    </div>
 {% endblock %}

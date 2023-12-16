@@ -13,7 +13,6 @@ from nameparser import HumanName
 from django.db.models import Q
 import unidecode
 import os
-from django.core.paginator import Paginator # added to support pagination
 from django.contrib import messages # added to allow passing messages
 
 from django.views.generic import TemplateView
@@ -23,9 +22,13 @@ from .forms import SearchForm, AddForm
 from .book_search import gbooks
 import re, requests
 from django.utils import timezone
+from django.core.paginator import (EmptyPage, PageNotAnInteger, Paginator)
+from django.conf import settings
 
 # The base code source for my work is based on:
 # https://github.com/mdn/django-locallibrary-tutorial
+
+PAGE_SIZE = getattr(settings, "PAGE_SIZE", 24)
 
 def index(request):  # slightly modifed from catalog to drop available copies
     """View function for home page of site."""
@@ -49,16 +52,19 @@ def index(request):  # slightly modifed from catalog to drop available copies
 class BookListView(generic.ListView): # from catalog
     """Generic class-based view for a list of books."""
     model = Book
-    paginate_by = 20 # this doesn't work as a variable so probably isn't needed
     template_name = "booklibrary/book_list.html"
 
     def get(self, request) :
-        dups = request.GET.get("List duplicate books", False)
+        dups = request.GET.get("dups", False)
         fields = request.GET.get("fields", False)
         strval =  request.GET.get("search", False)
         if dups :
-            book_list = Book.bookInstance_count() > 1
-        if strval and (fields == "title" or not fields):
+            book_list = [book for book in Book.objects.with_counts() if book.num_copies > 1]
+# https://docs.djangoproject.com/en/4.0/topics/db/managers/#custom-managers
+# https://stackoverflow.com/questions/5685037/django-filter-query-based-on-custom-function
+# https://stackoverflow.com/questions/27878228/django-one-to-many-relationship-number-of-objects
+# https://stackoverflow.com/questions/7714290/django-count-specific-items-of-a-many-to-one-relationship
+        elif strval and (fields == "title" or not fields):
             # we have a search request for a simple title-only search
             query = Q(title__icontains=strval)
             query.add(Q(summary__icontains=strval), Q.OR)
@@ -92,10 +98,17 @@ class BookListView(generic.ListView): # from catalog
             #query.add(Q(summary__icontains=strval), Q.OR)
             #book_list = Book.objects.filter(query).select_related().order_by('title')
 
-        paginator = Paginator(book_list, 20)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        ctx = {'page_obj' : page_obj, 'search': strval}
+        paginator = Paginator(book_list, PAGE_SIZE)
+        page_number = request.GET.get("page")
+        try:
+            page = paginator.page(page_number)
+        except PageNotAnInteger:
+            # If page is not an integer, show first page.
+            page = paginator.page(1)
+        except EmptyPage:
+            # If page is out of range, show last existing page.
+            page = paginator.page(paginator.num_pages)
+        ctx = {'page_obj' : page, 'search': strval}
         return render(request, self.template_name, ctx)
 
 # References
@@ -113,11 +126,9 @@ class BookListView(generic.ListView): # from catalog
 
 # https://stackoverflow.com/questions/1074212/how-can-i-see-the-raw-sql-queries-django-is-running
 
-
 class GenreListView(generic.ListView): # from catalog
     """Generic class-based list view for a list of Genre."""
     model = Genre
-    paginate_by = 20
     template_name = "booklibrary/genre_list.html"
 
     def get(self, request) :
@@ -137,12 +148,18 @@ class GenreListView(generic.ListView): # from catalog
         if test :
                 messages.add_message(request, messages.INFO, 'testing, testing')
 
-        paginator = Paginator(genre_list, 20)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        ctx = {'page_obj' : page_obj, 'search': strval}
+        paginator = Paginator(genre_list, PAGE_SIZE)
+        page_number = request.GET.get("page")
+        try:
+            page = paginator.page(page_number)
+        except PageNotAnInteger:
+            # If page is not an integer, show first page.
+            page = paginator.page(1)
+        except EmptyPage:
+            # If page is out of range, show last existing page.
+            page = paginator.page(paginator.num_pages)
+        ctx = {'page_obj' : page, 'search': strval}
         return render(request, self.template_name, ctx)
-
 
 class BookDetailView(generic.DetailView): # from catalog
     """Generic class-based detail view for a book."""
@@ -180,7 +197,6 @@ class BookSearchView(TemplateView):
 class AuthorListView(generic.ListView): # from catalog
     """Generic class-based list view for a list of authors."""
     model = Author
-    paginate_by = 20
     template_name = "booklibrary/author_list.html"
 
     def get(self, request) :
@@ -197,10 +213,17 @@ class AuthorListView(generic.ListView): # from catalog
         else :
             author_list = Author.objects.all().order_by('last_name')
 
-        paginator = Paginator(author_list, 20)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        ctx = {'page_obj' : page_obj, 'search': strval}
+        paginator = Paginator(author_list, PAGE_SIZE)
+        page_number = request.GET.get("page")
+        try:
+            page = paginator.page(page_number)
+        except PageNotAnInteger:
+            # If page is not an integer, show first page.
+            page = paginator.page(1)
+        except EmptyPage:
+            # If page is out of range, show last existing page.
+            page = paginator.page(paginator.num_pages)
+        ctx = {'page_obj' : page, 'search': strval}
         return render(request, self.template_name, ctx)
 
 class AuthorDetailView(generic.DetailView): # from catalog
@@ -236,18 +259,18 @@ def add_book(request):
             myimageLink = form.cleaned_data['imageLink']
             myuniqueID = form.cleaned_data['uniqueID']
             mystatus = form.cleaned_data['status']
-            myBook_Genre = Genre.objects.get(id=form.cleaned_data['Book_Genre']).name
+#            myBook_Genre = Genre.objects.get(id=form.cleaned_data['Book_Genre']).name
+            myBook_Genre = form.cleaned_data['Book_Genre']
             myBook_Location = Location.objects.get(id=form.cleaned_data['Book_Location']).name
             myBook_Keywords = form.cleaned_data['Book_Keywords']
-            myBook_Series = Series.objects.get(id=form.cleaned_data['Book_Series']).name
+            myBook_Series = form.cleaned_data['Book_Series']
 # https://stackoverflow.com/questions/657607/setting-the-selected-value-on-a-django-forms-choicefield
-            if myBook_Genre != 'None':
+            if myBook_Genre[0] != 'None':
                 print("***Just before testing repeat_genre***")
                 #if 'repeat_genre' in request.session:
-                saved_genre = request.session.get('repeat_genre', myBook_Genre)
+                saved_genre = request.session.get('repeat_genre', myBook_Genre[0])
                 print("***Got a genre: ", saved_genre, " ***")
-                print("Key of ", saved_genre, " is ", Genre.objects.get(name = saved_genre).id)
-                form.fields['Book_Genre'].initial = [Genre.objects.get(name = saved_genre).id]
+                form.fields['Book_Genre'].initial = myBook_Genre[0]
                 #yourFormInstance.fields['max_number'].initial = [1]
             #else:
             #    print("*** went into else statement ***, repeat_genre = ", request.session['repeat_genre'])
@@ -337,10 +360,13 @@ def add_book(request):
                 mygenreObject2, created = Genre.objects.filter(
                     Q(name = mygenre2)).get_or_create(name = mygenre2)
                 myBook.genre.add(mygenreObject2)
-            if (myBook_Genre and myBook_Genre != "None"):
-                mygenreObject3, created = Genre.objects.filter(
-                    Q(name = myBook_Genre)).get_or_create(name = myBook_Genre)
-                myBook.genre.add(mygenreObject3)
+            if myBook_Genre:    # not required and "None" not wanted
+                for genre_id in myBook_Genre:
+                    genre = Genre.objects.get(id=genre_id).name
+                    if (genre and genre != "None"):
+                        mygenreObject3, created = Genre.objects.filter(
+                            Q(name = genre)).get_or_create(name = genre)
+                        myBook.genre.add(mygenreObject3)
             if (mylanguage and mylanguage != "None"):
                 mylanguageObject, created = Language.objects.filter(
                     Q(name = mylanguage)).get_or_create(name = mylanguage)
@@ -349,11 +375,11 @@ def add_book(request):
                 myBook.language = mylanguageObject
                 # The following gets "'NoneType' object has no attribute 'add'"
                 #myBook.language.add(mylanguageObject)
-            if myBook_Series:
+            if myBook_Series: # series is required and "None" ok
                 mySeriesObject, created = Series.objects.filter(
                     Q(name = myBook_Series)).get_or_create(name = myBook_Series)
                 myBook.series = mySeriesObject
-            for keyword_id in myBook_Keywords:
+            for keyword_id in myBook_Keywords:  # keyword required and "None" ok
                 keyword = Keywords.objects.get(id=keyword_id).name
                 if keyword:
                     mykeywordObject, created = Keywords.objects.filter(
@@ -368,8 +394,9 @@ def add_book(request):
 # Update only works on querysets -
 # https://stackoverflow.com/questions/15304378/django-error-model-object-has-no-attribute-update/39934249
 
-            books=Book.objects.all()
-            return redirect('/booklibrary/books/', {'books':books})
+#            books=Book.objects.all()
+#            return redirect('/booklibrary/books/', {'books':books})
+            return redirect('/book/'+str(myBook.pk)+'/update/')
         else:
             print('opps, form not valid')
             return render(request, 'booklibrary/book_results.html', {'form': form})
@@ -426,12 +453,16 @@ class BookDelete(PermissionRequiredMixin, DeleteView): # from catalog
 
 class BookInstanceUpdate(OwnerUpdateView):
     model = BookInstance
+    success_url = reverse_lazy('books')
     fields = ['book', 'location']
 
 
 class BookInstanceDelete(OwnerDeleteView):
     model = BookInstance
     success_url = reverse_lazy('books')
+
+def get_ip(request):
+  return HttpResponse(request.META['REMOTE_ADDR'])
 
 ###############################################################################################
 

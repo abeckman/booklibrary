@@ -11,6 +11,7 @@ urlpatterns = [
     path('author/<int:pk>',
          views.AuthorDetailView.as_view(), name='author-detail'), # from catalog app
     path('book/search/', views.BookSearchView.as_view(), name='book-search'),
+    path("ip/", views.get_ip),
 ]
 
 # Add URLConf to create, update, and delete authors
@@ -33,3 +34,5 @@ urlpatterns += [
     path('bookinstance/<uuid:pk>/update/', views.BookInstanceUpdate.as_view(), name='bookinstance-update'), # from catalog app
     path('bookinstance/<uuid:pk>/delete/', views.BookInstanceDelete.as_view(), name='bookinstance-delete'), # from catalog app
 ]
+
+
