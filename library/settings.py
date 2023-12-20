@@ -29,7 +29,7 @@ APP_NAME = 'Home Book Librarian'
 SECRET_KEY = os.getenv("SECRET_KEY", '3k2cb-q#4iwdsi0+%hnsiwxmg(u3ngmw@r0g7%7_&97)38or&s')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = bool(strtobool(os.getenv("DEBUG", "true")))
-
+#DEBUG = False
 # Not sure this is used
 INTERNAL_IPS = ('HTTP_X_REAL_IP')
 
@@ -59,7 +59,7 @@ INSTALLED_APPS = [
     'crispy_forms',
     "crispy_bootstrap5",
     'rest_framework',
-    'social_django',
+#    'social_django',
     'booklibrary.apps.BooklibraryConfig', # apps added goes here
     'blog.apps.BlogConfig',
     'newblog.apps.NewblogConfig',

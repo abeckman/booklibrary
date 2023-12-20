@@ -45,7 +45,7 @@ urlpatterns = [
     path('', include(('booklibrary.urls', 'booklibrary'), namespace='booklibrary')),
 #    path('', RedirectView.as_view(url='booklibrary/', permanent=True)), # catalog alternative to above
 # Above doesn't work - missing namespace?
-    re_path(r'^oauth/', include('social_django.urls', namespace='social')),
+#    re_path(r'^oauth/', include('social_django.urls', namespace='social')),
 ]
 
 #Add Django site authentication urls (for login, logout, password management) - from catalog

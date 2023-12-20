@@ -13,7 +13,9 @@
                 {% if search %} value="{{ search }}" {% endif %}
             >
             <button type="submit"><i class="fa fa-search"></i></button>
-            <a href="{% url 'booklibrary:books' %}"><i class="fa fa-undo"></i></a>
+            <a href="{% url 'booklibrary:books' %}"><i class="fa fa-undo"></i></a><br>
+            <input type="checkbox" id="author_location" name="author_location" value="Yes">
+            <label for="author_location"> Location of all the books for this author?</label><br>
         </form>
     </div>
 

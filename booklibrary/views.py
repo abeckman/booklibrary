@@ -201,6 +201,8 @@ class AuthorListView(generic.ListView): # from catalog
 
     def get(self, request) :
         strval =  request.GET.get("search", False)
+        location = request.GET.get("author_location", False)
+        request.session['location'] = False
         if strval :
             # Simple title-only search
             # objects = Post.objects.filter(title__contains=strval).select_related().order_by('-updated_at')[:10]
@@ -212,6 +214,9 @@ class AuthorListView(generic.ListView): # from catalog
             author_list = Author.objects.filter(query).select_related().order_by('last_name')
         else :
             author_list = Author.objects.all().order_by('last_name')
+
+        if location : # we want to signal the author detail template to add location
+            request.session['location'] = True
 
         paginator = Paginator(author_list, PAGE_SIZE)
         page_number = request.GET.get("page")
