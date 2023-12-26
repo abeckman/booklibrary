@@ -235,6 +235,55 @@ class AuthorDetailView(generic.DetailView): # from catalog
     """Generic class-based detail view for an author."""
     model = Author
 
+class LocationListView(generic.ListView):
+    """Generic class-based list view for a list of Location."""
+    model = Location
+    template_name = "booklibrary/location_list.html"
+
+    def get(self, request) :
+        strval =  request.GET.get("search", False)
+        if strval :
+            query = Q(name__icontains=strval)
+            location_list = Location.objects.filter(query).select_related().order_by('name')
+        else :
+            location_list = Location.objects.all().order_by('name')
+
+        paginator = Paginator(location_list, PAGE_SIZE)
+        page_number = request.GET.get("page")
+        try:
+            page = paginator.page(page_number)
+        except PageNotAnInteger:
+            # If page is not an integer, show first page.
+            page = paginator.page(1)
+        except EmptyPage:
+            # If page is out of range, show last existing page.
+            page = paginator.page(paginator.num_pages)
+        ctx = {'page_obj' : page}
+        return render(request, self.template_name, ctx)
+
+class LocationDetailView(generic.DetailView):
+    """Generic class-based list view for a list of the content of a location."""
+    model = Location
+    template_name = "booklibrary/location_detail.html"
+
+    def get(self, request, pk) :
+        location_id = pk
+        location = Location.objects.filter(Q(id=location_id))
+        location_list = BookInstance.objects.filter(Q(location=location_id)).order_by('book')
+
+        paginator = Paginator(location_list, PAGE_SIZE)
+        page_number = request.GET.get("page")
+        try:
+            page = paginator.page(page_number)
+        except PageNotAnInteger:
+            # If page is not an integer, show first page.
+            page = paginator.page(1)
+        except EmptyPage:
+            # If page is out of range, show last existing page.
+            page = paginator.page(paginator.num_pages)
+        ctx = {'page_obj' : page, 'location': location[0]}
+        return render(request, self.template_name, ctx)
+
 
 @login_required
 def add_book(request):
@@ -421,9 +470,23 @@ class AuthorUpdate(PermissionRequiredMixin, UpdateView): # from catalog
     permission_required = 'booklibrary.author.can_change_author'
 
 class AuthorDelete(PermissionRequiredMixin, DeleteView): # from catalog
-    model = Author
+    model = Location
     success_url = reverse_lazy('authors')
     permission_required = 'booklibrary.author.can_delete_author'
+
+class LocationCreate(LoginRequiredMixin, CreateView):
+    model = Location
+    fields = ['name']
+
+class LocationUpdate(PermissionRequiredMixin, UpdateView):
+    model = Location
+    fields = '__all__' # Not recommended (potential security issue if more fields added)
+    permission_required = 'booklibrary.location.can_change_location'
+
+class LocationDelete(PermissionRequiredMixin, DeleteView):
+    model = Location
+    success_url = reverse_lazy('locations')
+    permission_required = 'booklibrary.location.can_delete_location'
 
 class BookCreate(LoginRequiredMixin, TemplateView): # almost nothing left from catalog
 	def get(self, request):

@@ -51,7 +51,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles', # first six are default
     'django.contrib.humanize',
     'django_bootstrap_icons',
+    'django.contrib.sites', # required by django-robots
     'taggit', # Used by newblog for tagging
+    'robots', # django-robots to get rid of annoyning messages
     'fontawesomefree',
     # Extensions - installed with pip3 / requirements.txt
     "debug_toolbar",
@@ -83,6 +85,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'library.urls'
+SITE_ID = 1 # from sites installation which in turn was from django-robots
 
 TEMPLATES = [
     {

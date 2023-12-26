@@ -109,7 +109,11 @@
                     <li class="nav-item" {% if request.get_full_path == abc2 %}class="active"{% endif %}>
                         <a href="{% url 'authors' %}">All authors</a></li>
 
-                    {% url 'booklibrary:book-search' as abc3 %}
+                    {% url 'booklibrary:locations' as abc3 %}
+                    <li class="nav-item" {% if request.get_full_path == abc3 %}class="active"{% endif %}>
+                        <a href="{% url 'locations' %}">All locations</a></li>
+
+                    {% url 'booklibrary:book-search' as abc4 %}
                     <li class="nav-item" {% if request.get_full_path == abc3 %}class="active"{% endif %}>
                         <a href="{% url 'book-search' %}">Add a book</a></li>
                 </ul>

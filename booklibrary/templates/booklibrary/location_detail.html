@@ -1,0 +1,21 @@
+{% extends "./base_menu.html" %}
+<!-- Fonts and security from dj4e -->
+
+{% block content %}
+
+<h1>Contents of {{ location }} </h1>
+{% if page_obj %} <!-- page_obj comes in from view and is the list of bookinstances -->
+    <ul>
+        {% for instance in page_obj %}
+        <li>
+            <a href="{{ instance.book.get_absolute_url }}">
+            {{ instance.book }} ({{ instance.book.authors.all|join:", " }})
+            </a>
+        </li>
+        {% endfor %}
+        {% include "misc/includes/pagination.html" %}
+    </ul>
+{% else %}
+  <p>There are no books in this location.</p>
+{% endif %}
+{% endblock %}

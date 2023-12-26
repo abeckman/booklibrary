@@ -1,0 +1,39 @@
+{% extends "./base_menu.html" %}
+<!-- Fonts and security from dj4e -->
+
+{% block content %}
+{% include "misc/includes/messages.html" %}
+
+<h1>Location List</h1>
+    <div style="float:right">
+<!-- https://www.w3schools.com/howto/howto_css_search_button.asp -->
+        <form>
+            <input type="text" placeholder="Search.." name="search"
+                {% if search %} value="{{ search }}" {% endif %}
+            >
+            <button type="submit"><i class="fa fa-search"></i></button>
+            <a href="{% url 'booklibrary:books' %}"><i class="fa fa-undo"></i></a><br>
+        </form>
+    </div>
+
+{% if page_obj %} <!-- page_obj comes in from view and is the list of locations -->
+    <ul>
+        {% for location in page_obj %}
+        <li>
+            <a href="{% url 'booklibrary:location-detail' location.id %}">
+            {{ location }}
+            <span style="float: right;">
+                {% if perms.booklibrary.delete_location %}
+                    <a href="{% url 'booklibrary:location-update' location.id %}"><i class="fa fa-pencil"></i></a>
+                    <a href="{% url 'booklibrary:location-delete' location.id %}"><i class="fa fa-trash"></i></a>
+                {% endif %}
+            </span>
+            </a>
+        </li>
+        {% endfor %}
+        {% include "misc/includes/pagination.html" %}
+    </ul>
+{% else %}
+  <p>There are no locations available.</p>
+{% endif %}
+{% endblock %}
