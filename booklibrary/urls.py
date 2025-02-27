@@ -2,6 +2,12 @@ from django.urls import path # path from polls and catalog apps
 from . import views # from polls and catalog apps
 #from django.urls import re_path # suggested replacement for orig url
 from django.urls import include, re_path # added by robots_django
+from django.contrib.sitemaps.views import sitemap # from Django 4 by Example
+from booklibrary.sitemaps import BookSitemap
+
+sitemaps = { # from Django 4 by Example
+'books': BookSitemap,
+}
 
 urlpatterns = [
     path('', views.index, name='index'), # from polls and catalog apps
@@ -17,6 +23,8 @@ urlpatterns = [
     path('book/search/', views.BookSearchView.as_view(), name='book-search'),
     path("ip/", views.get_ip),
     re_path(r'^robots\.txt', include('robots.urls')), # from robots-django
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps},
+        name='django.contrib.sitemaps.views.sitemap') # from Django4 by Example
 ]
 
 # Add URLConf to create, update, and delete authors

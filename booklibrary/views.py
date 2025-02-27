@@ -74,6 +74,7 @@ class BookListView(generic.ListView): # from catalog
             # NOTE: this will require work to refine
             query = Q(authors__last_name__icontains=strval)
             query.add(Q(authors__first_name__icontains=strval), Q.OR)
+            query.add(Q(authors__full_name__icontains=strval), Q.OR)
             book_list = Book.objects.filter(query).select_related().order_by('title')
         elif strval and fields == "genre":
             # we have a search request for genre

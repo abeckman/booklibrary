@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles', # first six are default
     'django.contrib.humanize',
     'django_bootstrap_icons',
+    'django.contrib.sitemaps',
     'django.contrib.sites', # required by django-robots
     'taggit', # Used by newblog for tagging
     'robots', # django-robots to get rid of annoyning messages
@@ -66,12 +67,14 @@ INSTALLED_APPS = [
     'blog.apps.BlogConfig',
     'newblog.apps.NewblogConfig',
 ]
+SITE_ID = 1 # from sites installation which in turn was from django-robots
 
 # When we get to crispy forms :)
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -81,11 +84,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'social_django.middleware.SocialAuthExceptionMiddleware',   # Add
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
 ROOT_URLCONF = 'library.urls'
-SITE_ID = 1 # from sites installation which in turn was from django-robots
 
 TEMPLATES = [
     {
