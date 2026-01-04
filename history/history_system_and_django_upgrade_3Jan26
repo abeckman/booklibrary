@@ -1,0 +1,452 @@
+    1  pwd
+    2  cd ~/dj4e-samples/
+    3  git pull
+    4  cd ~/django_projects/mysite
+    5  python3 manage.py startapp home
+    6  ls
+    7  ls /home
+    8  ls home
+    9  mkdir -p home/templates/home
+   10  vi home/templates/home/main.html
+   11  vi mysite/urls.py 
+   12  ls polls/templates/polls
+   13  cat polls/templates/polls/index.html >> home/templates/home/main.html 
+   14  vi home/templates/home/main.html
+   15  ls ../..
+   16  ls ../../django_projects/
+   17  ls ../../django_projects/mysite
+   18  ls ../../dj4e-samples/
+   19  ls ../../dj4e-samples/dj4e-samples/
+   20  less ../../dj4e-samples/dj4e-samples//urls.py
+   21  less ../../dj4e-samples/dj4e-samples/home/ur*
+   22  ls ../../dj4e-samples/dj4e-samples/home
+   23  ls ../../dj4e-samples/dj4e-samples/
+   24  ls ../../dj4e-samples/home
+   25  less ../../dj4e-samples/home/urls.py 
+   26  less ../../dj4e-samples/session/urls.py 
+   27  vi mysite/urls.py 
+   28  history
+   29  python3 manage.py check
+   30  vi mysite/settings.py 
+   31  python3 manage.py check
+   32  ls polls
+   33  exit
+   34  ls
+   35  ls -l django-locallibrary-tutorial/
+   36  cd django-locallibrary-tutorial/
+   37  less Procfile 
+   38  less runtime.txt 
+   39  ls templates/
+   40  ls templates/registration/
+   41  cd ..
+   42  mv django-locallibrary-tutorial/locallibrary/ .
+   43  mv django-locallibrary-tutorial/catalog/ .
+   44  ls
+   45  vi mysite/urls.py 
+   46  ls locallibrary/
+   47  vi mysite/urls.py 
+   48  ls mysite
+   49  vi mysite/settings.py 
+   50  pwd
+   51  ls
+   52  python3 manage.py check
+   53  ls catalog
+   54  cd locallibrary/
+   55  ls
+   56  less settings.py 
+   57  cd ..
+   58  mv locallibrary/ django-locallibrary-tutorial/
+   59  vi mysite/settings.py 
+   60  vi mysite/urls.py 
+   61  python3 manage.py check
+   62  cd catalog/
+   63  ls
+   64  ls migrations/
+   65  cd ..
+   66  ls
+   67  rm catalog/migrations/*
+   68  python3 manage.py makemigrations
+   69  ls catalog/migrations/
+   70  ls
+   71  less django3_history_2Jan21 
+   72  ld django-locallibrary-tutorial/
+   73  ls django-locallibrary-tutorial/
+   74  less django-locallibrary-tutorial/README.md 
+   75  cd catalog/
+   76  python3 manage.py makemigrations
+   77  cd ..
+   78  ls catalog/
+   79  vi catalog/admin.py
+   80  ls
+   81  rm db*
+   82  python3 manage.py makemigrations
+   83  ls
+   84  ls -l
+   85  python3 manage.py migrate
+   86  ls mysite
+   87  grep ads mysite/*.py
+   88  grep catalog mysite/*.py
+   89  cd catalog
+   90  ls
+   91  less models.py 
+   92  cd ..
+   93  ls ..
+   94  ls ../..
+   95  ls
+   96  mkdir history
+   97  mv django_history_13Jan21 django3_history_* history
+   98  ls
+   99  ls mysite
+  100  python3 manage.py makemigrations catalog
+  101  python3 manage.py migrate
+  102  vi mysite/settings.py 
+  103  less django-locallibrary-tutorial/README.md 
+  104  python3 manage.py collectstatic
+  105  python3 manage.py test
+  106  less catalog/models.py 
+  107  git clone https://github.com/Manikaran20/Books-Inventory.git
+  108  cd Books-Inventory/
+  109  ls
+  110  less requirements.txt 
+  111  cat requirements.txt 
+  112  pip3 install certifi
+  113  pip3 install chardet
+  114  pip3 install idna
+  115  pip3 install pytz
+  116  pip3 install requests
+  117  ls
+  118  less README.md 
+  119  ls -l SpoonshotAssignment/
+  120  cd SpoonshotAssignment/
+  121  ls -l
+  122  cat requirements.txt 
+  123  pip3 install requests
+  124  pip3 install Markdown
+  125  pip3 install djangorestframework
+  126  pip3 install pyjsonq
+  127  ls
+  128  cd googlebooks/
+  129  ls
+  130  ls Spoon
+  131  ls 
+  132  cd ..
+  133  ls
+  134  ls SpoonshotAssignment/
+  135  less SpoonshotAssignment/settings.py 
+  136  less SpoonshotAssignment/urls.py 
+  137  ls
+  138  mv googlebooks/ ..
+  139  cd ..
+  140  ls
+  141  vi mysite/settings.py 
+  142  mv Books-Inventory/googlebooks/ .
+  143  grep google Books-Inventory/SpoonshotAssignment/*.py
+  144  ls Books-Inventory/SpoonshotAssignment/
+  145  ls Books-Inventory/SpoonshotAssignment/SpoonshotAssignment/*.py
+  146  grep google Books-Inventory/SpoonshotAssignment/SpoonshotAssignment/*.py
+  147  ls mysite/
+  148  less google Books-Inventory/SpoonshotAssignment/SpoonshotAssignment/router.py
+  149  less Books-Inventory/SpoonshotAssignment/SpoonshotAssignment/router.py
+  150  cp Books-Inventory/SpoonshotAssignment/SpoonshotAssignment/router.py mysite
+  151  vi mysite/settings.py 
+  152  vi mysite/urls.py 
+  153  python3 manage.py check
+  154  vi googlebooks/book_search.py 
+  155  cd
+  156  ls -al
+  157  vi .bashrc
+  158  source .bashrc
+  159  vi .bashrc
+  160  source .bashrc
+  161  vi .bashrc
+  162  source .bashrc
+  163  ls
+  164  cd django_projects/mysite/
+  165  ls
+  166  python3 manage.py check
+  167  grep django_ext *
+  168  grep django_ext */*
+  169  grep django_ext */*/*
+  170  vi mysite/settings.py 
+  171  ls
+  172  exit
+  173  pip3 install nameparser
+  174  history |grep which
+  175  pwd
+  176  workon
+  177  workon django3
+  178  pwd
+  179  cd library/
+  180  grep which history_updatedjango_May22 
+  181  which pip
+  182  grep django history_updatedjango_May22 
+  183  django-admain.py --version
+  184  django-admin.py --version
+  185  python -m django --version
+  186  exit
+  187  cd ../library/booklibrary/
+  188  grep .models *.py
+  189  exit
+  190  workon
+  191  workon django3
+  192  cd django_projects/library/
+  193  ls
+  194  python manage.py dumpdata > datadump.json
+  195  exit
+  196  ls
+  197  python3 manage.py startapp blog
+  198  ls
+  199  cd blog
+  200  ls
+  201  cd ../library/
+  202  ls
+  203  vi urls.py 
+  204  cp ../booklibrary/urls.py ../blog
+  205  vi ../blog/urls.py 
+  206  vi settings.py 
+  207  cd ../blog
+  208  ls
+  209  vi views
+  210  ls
+  211  less views.py
+  212  mv views views.py
+  213  vi models.py 
+  214  ls
+  215  vi apps.py 
+  216  vi admin.py 
+  217  mkdir templatetags
+  218  touch templatetags/__init__.py
+  219  vi templatetags/blog_extras.py
+  220  mkdir templates
+  221  vi templates/base.html
+  222  mkdir templates/blog
+  223  vi templates/blog/index.html
+  224  vi templates/blog/post-byline.html
+  225  vi templates/blog/post-detail.html
+  226  vi templates/blog/post-listx.html
+  227  vi templates/blog/post-list.html
+  228  cd ..
+  229  history |grep migrate
+  230  history |grep migrat
+  231  python3 manage.py makemigrations
+  232  vi blog/urls.py 
+  233  python3 manage.py check
+  234  vi library/urls.py 
+  235  ls library/
+  236  less library/wsgi.py 
+  237  less library/asgi.py 
+  238  vi library/settings.py 
+  239  python3 manage.py check
+  240  vi blog/apps.py 
+  241  grep booklibrary library/*.py
+  242  less booklibrary/urls.py
+  243  vi blog/urls.py
+  244  less booklibrary/urls.py
+  245  vi blog/urls.py
+  246  python3 manage.py check
+  247  vi library/settings.py 
+  248  python3 manage.py makemigrations
+  249  python3 manage.py migrate
+  250  exit
+  251  pwd
+  252  ls
+  253  cd library/
+  254  ls
+  255  cd booklibrary/templates
+  256  cd booklibrary/
+  257  ls
+  258  less book_create.html 
+  259  head book_detail.html 
+  260  cd ..
+  261  cd blog
+  262  ls
+  263  cd template
+  264  cd templates
+  265  ls
+  266  mv base.html blog
+  267  exit
+  268  pip3 install crispy-bootstrap5
+  269  exi
+  270  exit
+  271  python --version
+  272  history
+  273  python3 manage.py check
+  274  ls -al
+  275  cd ..
+  276  ls -al
+  277  ls -al .cache
+  278  rm -rf .cache/*
+  279  ls -l .cache
+  280  ls
+  281  cd library
+  282  ls
+  283  python3 manage.py check
+  284  exit
+  285  df -h
+  286  ls -l
+  287  ls booklibrary/
+  288  ls blog
+  289  ls batch
+  290  ls ..
+  291  ls -l ../library
+  292  ls ../django_projects/
+  293  ls -l ../django_projects/*
+  294  cd ..
+  295  ls
+  296  cd Django-4-by-example/
+  297  ls
+  298  less README.md 
+  299  cd
+  300  ls
+  301  ls django_projects/
+  302  ls django_projects/*
+  303  ls library/
+  304  ls
+  305  ls -l Django-4-by-example/
+  306  rm -rf Django-4-by-example/
+  307  df -h
+  308  ls -l
+  309  pwd
+  310  less history_django_db_load_9Jan21 
+  311  ls
+  312  ls -l django_projects/
+  313  ls -l django_projects/librafy
+  314  ls -l django_projects/library/
+  315  ls -l library/
+  316  ls
+  317  mv django_projects/ old_django_projects
+  318  du -s *
+  319  exit
+  320  ls -l
+  321  df -h
+  322  cd library/
+  323  ls
+  324  ls db-backup/
+  325  mysqldump -u abeckman -h abeckman.mysql.pythonanywhere-services.com --set-gtid-purged=OFF --no-tablespaces 'abeckman$booklibrary' > db-backup/db-backup_3Jan26.sql
+  326  ls -l db-backup/
+  327  git status
+  328  ls
+  329  du -sh *
+  330  ls db-backup
+  331  ls db-backup/*22*
+  332  rm db-backup/*22*
+  333  ls db-backup/*23*
+  334  rm db-backup/*23*
+  335  ls
+  336  ls db-backup
+  337  cd ..
+  338  ls
+  339  ls -al
+  340  cd old_django_projects/
+  341  ls
+  342  du -sh *
+  343  cd library
+  344  ls
+  345  ls -al
+  346  rm 2Jan26_requirements.txt 
+  347  pwd
+  348  ls -al
+  349  git push origin/main
+  350  cd ..
+  351  ls -al
+  352  cd mysite
+  353  ls -al
+  354  cd ../library/
+  355  ls -la
+  356  cd ..
+  357  ls
+  358  rm -rf old_django_projects/
+  359  df -h
+  360  exit
+  361  ls
+  362  ls -al
+  363  ls -al .virtualenvs/
+  364  workon django4
+  365  deactivate
+  366  ls -al .cache
+  367  date
+  368  rm -rf .cache/*
+  369  python 3.
+  370  pwd
+  371  ls
+  372  python3.13 -m venv .ve60
+  373  source ~/.ve60/bin/activate
+  374  python --version
+  375  pip install --upgrade pip
+  376  pip install django==6.0 ## this may take a couple of minutes
+  377  python -m django --version
+  378  ls -al
+  379  vi .bashrc
+  380  cd library/
+  381  ls
+  382  cd booklibrary
+  383  ls
+  384  python manage.py check
+  385  cd ..
+  386  python manage.py check
+  387  ls
+  388  pip install -r ./2Jan26_requirements.txt  # or path to your existing requirements.txt
+  389  pip install pillow
+  390  pip install -r ./2Jan26_requirements.txt  # or path to your existing requirements.txt
+  391  vi 2Jan26_requirements.txt 
+  392  pip install -r ./2Jan26_requirements.txt  # or path to your existing requirements.txt
+  393  pip install backports.zoneinfo
+  394  head 2Jan26_requirements.txt 
+  395  pip install cffi
+  396  vi 2Jan26_requirements.txt 
+  397  pip install i18n
+  398  vi 2Jan26_requirements.txt 
+  399  pip install mysqlclient
+  400  vi 2Jan26_requirements.txt 
+  401  pip install zopfli
+  402  vi 2Jan26_requirements.txt 
+  403  pip install -r ./2Jan26_requirements.txt  # or path to your existing requirements.txt
+  404  vi 2Jan26_requirements.txt 
+  405  history
+  406  python -m django --version
+  407  pip install django==6.0
+  408  python manage.py check
+  409  pip install distutils
+  410  vi /home/abeckman/library/library/settings.py
+  411  python manage.py check
+  412  pip install -U django-taggit
+  413  python manage.py check
+  414  pip install -U django-debug-toolbar
+  415  ls
+  416  grep django 2Jan26_requirements.txt 
+  417  pip install -U django-bootstrap-icons
+  418  pip install -U django-crispy-forms
+  419  pip install -U django-extensions
+  420  pip install -U django-filter
+  421  pip install -U django-robots
+  422  pip install -U djangorestframework
+  423  list 2Jan26_requirements.txt 
+  424  cat 2Jan26_requirements.txt 
+  425  pip install -U crispy-bootstrap5
+  426  pip install -U fontawesomefree
+  427  pip install -U *
+  428  pip install -U fonttools
+  429  pip install -U html5lib
+  430  pip install -U idna
+  431  pip install -U importlib-metadata
+  432  pip install -U importlib-markdown
+  433  pip install -U markdown
+  434  pip install -U nameparser
+  435  pip install -U oauthlib
+  436  pip install -U py
+  437  pip install -U requests
+  438  pip install -U six
+  439  cat 2Jan26_requirements.txt 
+  440  pip install -U social-auth-app-django
+  441  pip install -U social-auth-core
+  442  pip install -U sqlparse
+  443  pip install -U tinycss2
+  444  pip install -U typing_extensions
+  445  pip install -U unidecode
+  446  pip install -U urllib3
+  447  pip install -U weasyprint
+  448  pip install -U webencodings whitenoise
+  449  python manage.py check
+  450  ls
+  451  ls history/
+  452  history > history/history_system_and_django_upgrade_3Jan26

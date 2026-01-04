@@ -6,10 +6,17 @@ https://docs.djangoproject.com/en/4.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
+def strtobool(value: str) -> bool: # added to replace old distutils function
+    value = value.lower()
+    if value in ("y", "yes", "t", "true", "on", "1"):
+        return True
+    if value in ("n", "no", "f", "false", "off", "0"):
+        return False
+    raise ValueError(f"invalid truth value {value!r}")
 
 #from pathlib import Path # orig
 import os # orig
-from distutils.util import strtobool # orig
+# from distutils.util import strtobool # orig but now obsolete in Python 3.13
 import sys
 
 sys.modules['fontawesomefree'] = __import__('fontawesomefree')

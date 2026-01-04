@@ -73,7 +73,10 @@ class AuthorAdmin(admin.ModelAdmin):
     list_display = ('last_name',
                     'first_name', 'date_of_birth', 'date_of_death')
     fields = ['first_name', 'last_name', ('date_of_birth', 'date_of_death')]
-    filter_horizontal = ('book',)
+    # was filter_horizontal = ('book',) but it conflicted with newer Django
+    # vaugley remember putting it in for a formatting issue
+    # inlines = [BooksInline] # this didn't work either for similar reason - 
+    # I'm using an implied passthrough
 
 # next from catalog
 class BooksInstanceInline(admin.TabularInline):
