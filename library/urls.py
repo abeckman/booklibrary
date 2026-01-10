@@ -1,6 +1,8 @@
-"""library URL Configuration
+"""
+URL configuration for library project.
+
 The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.0/topics/http/urls/
+    https://docs.djangoproject.com/en/6.0/topics/http/urls/
 Examples:
 Function views
     1. Add an import:  from my_app import views
@@ -12,10 +14,11 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin # orig
-from django.urls import include, path # from polls and catalog apps
+
 import os
-from django.views.static import serve
+from django.contrib import admin # orig
+from django.urls import include, path, re_path # from polls and catalog apps
+from django.views.static import serve # from polls and catalog apps
 from django.conf import settings
 from django.conf.urls.static import static
 # from django.contrib.auth import views as auth_views
@@ -23,8 +26,6 @@ from django.conf.urls.static import static
 # from django.conf import settings # from catalog for static
 # from django.conf.urls.static import static # from catalog for including static URL - not used?
 import debug_toolbar
-
-from django.urls import re_path # suggested replacement for orig url
 
 """from myapp.views import home
 
@@ -55,7 +56,7 @@ urlpatterns += [
 ]
 
 # Serve the static HTML
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # from polls and catalog apps
 urlpatterns += [
     re_path(r'^site/(?P<path>.*)$', serve,
         {'document_root': os.path.join(BASE_DIR, 'site'),
