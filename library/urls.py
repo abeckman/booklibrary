@@ -34,7 +34,7 @@ urlpatterns = [
     re_path(r'^myapp/', include('myapp.urls'),
 ]
 """
-# app_name = "booklibrary"
+app_name = "booklibrary" # from polls for template namespace
 
 urlpatterns = [
     re_path(r'^admin/', admin.site.urls), # orig

@@ -1,28 +1,27 @@
-from django.shortcuts import render, redirect # render from catalog
+from django.db.models import Q # from polls
+from django.http import HttpResponse # originally from polls app - not used?
+from django.shortcuts import render, redirect # render from polls
+from django.urls import reverse_lazy # reverse from polls and catalog, reverse_lazy from catalog
 from booklibrary.models import Book, Author, BookInstance, Genre, Language, Keywords, Location, Series # modified from catalog
 from booklibrary.owner import OwnerUpdateView, OwnerDeleteView # ,OwnerListView, OwnerDetailView, OwnerCreateView from dj4e
 from django.views import generic # from polls and catalog apps
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin # from catalog
 # from django.shortcuts import get_object_or_404 # from polls and catalog apps
 # from django.http import HttpResponseRedirect # from polls and catalog apps
-from django.urls import reverse_lazy # , reverse Reverse from polls and catalog, reverse_lazy from catalog
 from datetime import datetime # from catalog app
 from django.contrib.auth.decorators import login_required #, permission_required # from catalog
 from django.views.generic.edit import CreateView, UpdateView, DeleteView # from catalog
 from nameparser import HumanName
-from django.db.models import Q
 import unidecode
 import os
 from django.contrib import messages # added to allow passing messages
-
 from django.views.generic import TemplateView
 #from django.views.generic.list import ListView
-from django.http import HttpResponse # originally from polls app - not used?
 from .forms import SearchForm, AddForm
-from .book_search import gbooks
+from .utils.book_search import gbooks
+from .utils.pagination import paginate_queryset
 import re, requests
 from django.utils import timezone
-from django.core.paginator import (EmptyPage, PageNotAnInteger, Paginator)
 from django.conf import settings
 
 # The base code source for my work is based on:
@@ -99,17 +98,8 @@ class BookListView(generic.ListView): # from catalog
             #query.add(Q(summary__icontains=strval), Q.OR)
             #book_list = Book.objects.filter(query).select_related().order_by('title')
 
-        paginator = Paginator(book_list, PAGE_SIZE)
-        page_number = request.GET.get("page")
-        try:
-            page = paginator.page(page_number)
-        except PageNotAnInteger:
-            # If page is not an integer, show first page.
-            page = paginator.page(1)
-        except EmptyPage:
-            # If page is out of range, show last existing page.
-            page = paginator.page(paginator.num_pages)
-        ctx = {'page_obj' : page, 'search': strval}
+        page_obj = paginate_queryset(request, book_list, PAGE_SIZE)
+        ctx = {'page_obj' : page_obj, 'search': strval}
         return render(request, self.template_name, ctx)
 
 # References
@@ -149,17 +139,8 @@ class GenreListView(generic.ListView): # from catalog
         if test :
                 messages.add_message(request, messages.INFO, 'testing, testing')
 
-        paginator = Paginator(genre_list, PAGE_SIZE)
-        page_number = request.GET.get("page")
-        try:
-            page = paginator.page(page_number)
-        except PageNotAnInteger:
-            # If page is not an integer, show first page.
-            page = paginator.page(1)
-        except EmptyPage:
-            # If page is out of range, show last existing page.
-            page = paginator.page(paginator.num_pages)
-        ctx = {'page_obj' : page, 'search': strval}
+        page_obj = paginate_queryset(request, genre_list, PAGE_SIZE)
+        ctx = {'page_obj' : page_obj, 'search': strval}
         return render(request, self.template_name, ctx)
 
 class BookDetailView(generic.DetailView): # from catalog
@@ -192,6 +173,8 @@ class BookSearchView(TemplateView):
             add_form.fields['Book_Genre'].initial = [Genre.objects.get(name = saved_genre).id]
             #form.fields['section'].initial = "Changes Approval"
             ctx = {'form': add_form, 'b': b}
+            # According to the tutorial, the following should be a HttpResponseRedirect
+            # to prevent the user from backing up to the previous screen
             return render(request, 'booklibrary/book_results.html', ctx)
 #https://stackoverflow.com/questions/657607/setting-the-selected-value-on-a-django-forms-choicefield
 
@@ -219,17 +202,8 @@ class AuthorListView(generic.ListView): # from catalog
         if location : # we want to signal the author detail template to add location
             request.session['location'] = True
 
-        paginator = Paginator(author_list, PAGE_SIZE)
-        page_number = request.GET.get("page")
-        try:
-            page = paginator.page(page_number)
-        except PageNotAnInteger:
-            # If page is not an integer, show first page.
-            page = paginator.page(1)
-        except EmptyPage:
-            # If page is out of range, show last existing page.
-            page = paginator.page(paginator.num_pages)
-        ctx = {'page_obj' : page, 'search': strval}
+        page_obj = paginate_queryset(request, author_list, PAGE_SIZE)
+        ctx = {'page_obj' : page_obj, 'search': strval}
         return render(request, self.template_name, ctx)
 
 class AuthorDetailView(generic.DetailView): # from catalog
@@ -248,19 +222,8 @@ class LocationListView(generic.ListView):
             location_list = Location.objects.filter(query).select_related().order_by('name')
         else :
             location_list = Location.objects.all().order_by('name')
-
-        paginator = Paginator(location_list, PAGE_SIZE)
-        page_number = request.GET.get("page")
-        try:
-            page = paginator.page(page_number)
-        except PageNotAnInteger:
-            # If page is not an integer, show first page.
-            page = paginator.page(1)
-        except EmptyPage:
-            # If page is out of range, show last existing page.
-            page = paginator.page(paginator.num_pages)
-        ctx = {'page_obj' : page}
-        return render(request, self.template_name, ctx)
+        page_obj = paginate_queryset(request, location_list, PAGE_SIZE)
+        return render(request, self.template_name, {"page_obj": page_obj})
 
 class LocationDetailView(generic.DetailView):
     """Generic class-based list view for a list of the content of a location."""
@@ -272,17 +235,8 @@ class LocationDetailView(generic.DetailView):
         location = Location.objects.filter(Q(id=location_id))
         location_list = BookInstance.objects.filter(Q(location=location_id)).order_by('book')
 
-        paginator = Paginator(location_list, PAGE_SIZE)
-        page_number = request.GET.get("page")
-        try:
-            page = paginator.page(page_number)
-        except PageNotAnInteger:
-            # If page is not an integer, show first page.
-            page = paginator.page(1)
-        except EmptyPage:
-            # If page is out of range, show last existing page.
-            page = paginator.page(paginator.num_pages)
-        ctx = {'page_obj' : page, 'location': location[0]}
+        page_obj = paginate_queryset(request, location_list, PAGE_SIZE)
+        ctx = {'page_obj' : page_obj, 'location': location[0]}
         return render(request, self.template_name, ctx)
 
 

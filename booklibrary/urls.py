@@ -9,6 +9,8 @@ sitemaps = { # from Django 4 by Example
 'books': BookSitemap,
 }
 
+
+
 urlpatterns = [
     path('', views.index, name='index'), # from polls and catalog apps
     path('books/', views.BookListView.as_view(), name='books'), # from catalog app
