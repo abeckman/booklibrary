@@ -6,7 +6,7 @@ class BookSitemap(Sitemap):
     priority = 0.9
 
 def items(self):
-    return Book.all()
+    return Book.objects.all()
 
 def lastmod(self, obj):
     return obj.updated

@@ -59,7 +59,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles', # first six are default
     'django.contrib.humanize',
     'django_bootstrap_icons',
-    'django.contrib.sitemaps',
+    'django.contrib.sitemaps', # Required for sitemaps
     'django.contrib.sites', # required by django-robots
     'taggit', # Used by newblog for tagging
     'robots', # django-robots to get rid of annoyning messages

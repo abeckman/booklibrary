@@ -462,6 +462,7 @@ class BookCreate(LoginRequiredMixin, TemplateView): # almost nothing left from c
 		q=Book(book_name=my_json['volumeInfo']['title'], ID=temp_key, preview_link='p_link', created_at= timezone.now())
 		q.save()
 		books=Book.objects.all()
+# Should be a redirect?
 		return render(request, 'booklibrary/book_list.html', {'books':books})
 
 class BookUpdate(PermissionRequiredMixin, UpdateView): # from catalog

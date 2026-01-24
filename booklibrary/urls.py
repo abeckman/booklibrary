@@ -3,15 +3,20 @@ from . import views # from polls and catalog apps
 #from django.urls import re_path # suggested replacement for orig url
 from django.urls import include, re_path # added by robots_django
 from django.contrib.sitemaps.views import sitemap # from Django 4 by Example
-from booklibrary.sitemaps import BookSitemap
+from django.contrib import sitemaps
+from .sitemaps import BookSitemap
 
-sitemaps = { # from Django 4 by Example
-'books': BookSitemap,
+sitemaps_dict = {
+    'books': BookSitemap,
 }
 
 
 
 urlpatterns = [
+    # pre-defined class from Django
+    # TemplateView would be an example
+
+    # our classes from views.py
     path('', views.index, name='index'), # from polls and catalog apps
     path('books/', views.BookListView.as_view(), name='books'), # from catalog app
     path('book/<int:pk>', views.BookDetailView.as_view(), name='book-detail'), # from catalog app
@@ -23,10 +28,14 @@ urlpatterns = [
     path('author/<int:pk>',
          views.AuthorDetailView.as_view(), name='author-detail'), # from catalog app
     path('book/search/', views.BookSearchView.as_view(), name='book-search'),
+
+    # funtions from views.py
     path("ip/", views.get_ip),
     re_path(r'^robots\.txt', include('robots.urls')), # from robots-django
-    path('sitemap.xml', sitemap, {'sitemaps': sitemaps},
-        name='django.contrib.sitemaps.views.sitemap') # from Django4 by Example
+
+    # Sitemaps code needs checking
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps_dict},
+        name='django.contrib.sitemaps.views.sitemap'), # From Django 4 by Example
 ]
 
 # Add URLConf to create, update, and delete authors
