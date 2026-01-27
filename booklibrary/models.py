@@ -70,7 +70,7 @@ class BookManager(models.Manager):
 class Book(models.Model): # from catalog. Added title validators, changed author to manytomany
 # and dropped on_delete and null=True, summary - dropped max_length, added null, blank
 # dropped ISBN, dropped author from Meta ordering. Added publisher, publishedDate,
-# series, previewLink, imageLink, uniqueID, contentType, purchaseDate. Added authors display
+# series, previewLink, imageLink, uniqueID, contentType. Added authors display
     """Model representing a book (but not a specific copy of a book)."""
     title = models.CharField(max_length=200,
         validators=[MinLengthValidator(1, "Title must be greater than 1 characters")])
@@ -91,7 +91,6 @@ class Book(models.Model): # from catalog. Added title validators, changed author
     imageLink = models.URLField(null=True, blank=True)
     uniqueID = models.CharField(max_length=200, null=True, blank=True)
     contentType = models.TextField(max_length=50, help_text="Enter EBOK for ebook or PHY for physical", null = True, blank = True)
-    purchaseDate = models.DateField(null=True, blank = True)
     objects = BookManager()
 
     class Meta:
