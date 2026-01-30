@@ -40,8 +40,6 @@
 </head>
 
 <body>
-
-<body>
     <a id="top"></a>
     <!-- humanize, fonts and security from dj4e -->
 {% block navbar %}
@@ -61,9 +59,19 @@
         <!-- gravatar depends on app_tags being loaded -->
         <!-- https://brobin.me/blog/2016/07/super-simple-django-gravatar/ -->
             <img style="width: 25px;" src="{{ user|gravatar:60 }}"/>
-        <li class="nav-item"><a href="{% url 'logout'%}?next={{request.path}}">Logout</a></li>
+        <li class="nav-item">
+            <form id="logout-form" method="post" action="{% url 'logout' %}?next={{request.path}}">
+                {% csrf_token %}
+                <button type="submit">Log out</button>
+            </form>
+        </li>
     {% else %}
-        <li class="nav-item"><a href="{% url 'login'%}?next={{request.path}}">Login</a></li>
+        <li class="nav-item">
+            <form id="login-form" method="post" action="{% url 'login' %}?next={{request.path}}">
+                {% csrf_token %}
+                <button type="submit">Log in</button>
+            </form>
+        </li>
     {% endif %}
     </ul>
 </nav>
@@ -122,7 +130,7 @@
 {% endblock sidebar %}
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
 {% block content %}
-{% load humanize %} <!-- https://docs.djangoproject.com/en/3.0/ref/contrib/humanize -->
+{% load humanize %} <!-- https://docs.djangoproject.com/en/6.0/ref/contrib/humanize -->
 {% endblock content %}
         </main>
     </div> <!-- row -->
