@@ -166,7 +166,9 @@ class BookSearchView(TemplateView):
         b = a.search()          # search is defined in book_search.py
         if (b ==[]):
 # This is pretty crude. Should add code to send a message and return to the search page
-                return HttpResponse("No Books Found", status= 401)
+            messages.add_message(request, messages.INFO, 'Google did not return anything, try again')
+            ctx = {'form': searchform}
+            return render(request, self.template_name, ctx)
         else:
             saved_genre = request.session.get('repeat_genre', 'None')
             add_form = AddForm(initial={'Book_Genre': Genre.objects.get(name = saved_genre).id})
