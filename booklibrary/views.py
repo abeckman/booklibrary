@@ -18,11 +18,17 @@ from django.contrib import messages # added to allow passing messages
 from django.views.generic import TemplateView
 #from django.views.generic.list import ListView
 from .forms import SearchForm, AddForm
-from .utils.book_search import gbooks
 from .utils.pagination import paginate_queryset
 import re, requests
 from django.utils import timezone
 from django.conf import settings
+from .utils.google_books import (
+    search_books,
+    GoogleBooksError,
+    GoogleBooksQuotaError,
+    GoogleBooksAuthError,
+    GoogleBooksBadRequest,
+)
 
 # The base code source for my work is based on:
 # https://github.com/mdn/django-locallibrary-tutorial
@@ -161,11 +167,36 @@ class BookSearchView(TemplateView):
         if not searchform.is_valid():
             ctx = {'form': searchform}
             return render(request, self.template_name, ctx)
-        volume = searchform.cleaned_data['search']
-        a = gbooks(volume)
-        b = a.search()          # search is defined in book_search.py
-        if (b ==[]):
-# This is pretty crude. Should add code to send a message and return to the search page
+        q = searchform.cleaned_data['search']
+        books = []
+        total = 0
+
+        if q:
+            try:
+                books, total = search_books(q, max_results=10)
+            except GoogleBooksQuotaError as exc:
+                messages.error(
+                    request,
+                    "Google Books is receiving too many requests right now. "
+                    "Please wait a bit and try again.",
+                )
+            except GoogleBooksAuthError:
+                messages.error(
+                    request,
+                    "Search is temporarily unavailable due to a configuration problem."
+                )
+            except GoogleBooksBadRequest:
+                messages.error(
+                    request,
+                    "That search could not be sent to Google. Try a simpler query."
+                )
+            except GoogleBooksError:
+                messages.error(
+                    request,
+                    "There was an unexpected error talking to Google Books. Please try again."
+                )
+
+        if (books ==[]):
             messages.add_message(request, messages.INFO, 'Google did not return anything, try again')
             ctx = {'form': searchform}
             return render(request, self.template_name, ctx)
@@ -174,7 +205,11 @@ class BookSearchView(TemplateView):
             add_form = AddForm(initial={'Book_Genre': Genre.objects.get(name = saved_genre).id})
             add_form.fields['Book_Genre'].initial = [Genre.objects.get(name = saved_genre).id]
             #form.fields['section'].initial = "Changes Approval"
-            ctx = {'form': add_form, 'b': b}
+            ctx = {
+                    'form': add_form,
+                    'books': books,
+                    "total": total,
+            }
             # According to the tutorial, the following should be a HttpResponseRedirect
             # to prevent the user from backing up to the previous screen
             return render(request, 'booklibrary/book_results.html', ctx)

@@ -82,6 +82,9 @@ SITE_ID = 1 # from sites installation which in turn was from django-robots
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
+GOOGLE_BOOKS_API_KEY = "AIzaSyB88RuyPwfyahQH1HZj622N0nB1AgrqmgA"
+GOOGLE_BOOKS_API_BASE = "https://www.googleapis.com/books/v1/volumes"
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

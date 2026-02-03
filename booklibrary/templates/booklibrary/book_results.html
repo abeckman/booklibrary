@@ -26,7 +26,7 @@ Will post to book-add after user picks a book -->
 
 
     <p>
-    {% for item in b %}
+    {% for item in books %}
 	    <ul>
 		    <img src="{{ item.10 }}"></img><a id="title" class="title" href="{{ item.9 }}">{{ item.0 }}</a>
 		    <p>Authors: {{ item.1 }}, {{ item.2 }}</p>
