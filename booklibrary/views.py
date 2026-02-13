@@ -211,7 +211,8 @@ class BookSearchView(TemplateView):
                     "total": total,
             }
             # According to the tutorial, the following should be a HttpResponseRedirect
-            # to prevent the user from backing up to the previous screen
+            # to prevent the user from backing up to the previous screen. In this case
+            # we don't touch the database so it doesn't matter.
             return render(request, 'booklibrary/book_results.html', ctx)
 #https://stackoverflow.com/questions/657607/setting-the-selected-value-on-a-django-forms-choicefield
 
