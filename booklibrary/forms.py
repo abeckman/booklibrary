@@ -27,10 +27,10 @@ class AddForm(forms.Form):
     locations = [(choice.pk, choice.name) for choice in Location.objects.all()]
     Book_Location = forms.ChoiceField(choices = locations, required=False)
     series = [(choice.pk, choice.name) for choice in Series.objects.all()]
-    Book_Series = forms.ChoiceField(choices = series, initial = series[0])
+    Book_Series = forms.ChoiceField(choices=series, initial=series[0] if series else None, required=False)
     keywords = [(choice.pk, choice.name) for choice in Keywords.objects.all()]
     #Book_Keywords = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple(),
-    Book_Keywords = forms.MultipleChoiceField(choices = keywords, initial = keywords[0],
+    Book_Keywords = forms.ChoiceField(choices=keywords, initial=keywords[0] if keywords else None, required=False,
         help_text="Keywords (up to 3)")
 # https://www.geeksforgeeks.org/choicefield-django-forms/
 # https://stackoverflow.com/questions/31035112/django-init-got-an-unexpected-keyword-argument-choices

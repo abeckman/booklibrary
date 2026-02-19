@@ -74,8 +74,9 @@ class AuthorAdmin(admin.ModelAdmin):
                     'first_name', 'date_of_birth', 'date_of_death')
     fields = ['first_name', 'last_name', ('date_of_birth', 'date_of_death')]
     # was filter_horizontal = ('book',) but it conflicted with newer Django
-    # vaugley remember putting it in for a formatting issue
-    # inlines = [BooksInline] # this didn't work either for similar reason - 
+    # vaugely remember putting it in for a formatting issue
+    #inlines = [BooksInline] # this didn't work either for similar reason -
+    #<class 'booklibrary.admin.BooksInline'>: (admin.E202) 'booklibrary.Book' has no ForeignKey to 'booklibrary.Author'.
     # I'm using an implied passthrough
 
 # next from catalog

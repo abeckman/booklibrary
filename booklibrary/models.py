@@ -74,7 +74,8 @@ class Book(models.Model): # from catalog. Added title validators, changed author
     """Model representing a book (but not a specific copy of a book)."""
     title = models.CharField(max_length=200,
         validators=[MinLengthValidator(1, "Title must be greater than 1 characters")])
-    authors = models.ManyToManyField('Author', help_text="Select authors for this book")
+    authors = models.ManyToManyField('Author',
+        help_text="Select authors for this book", related_name='books')
     # ManytoManyField used because book can have multiple authors and authors can have multiple books
     summary = models.TextField(help_text="Enter a brief description of the book", null=True, blank=True)
     publisher = models.TextField(max_length=250, help_text="Enter the publisher for the book", null=True, blank=True)
