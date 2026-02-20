@@ -596,12 +596,12 @@ class TestBookInstance:
         )
         assert instances == [bi2, bi1]
 
-    def test_str_raises_when_book_is_none(self):
-        """__str__ accesses self.book.title — None book will raise."""
+    def test_str_when_book_is_none(self):
+        """Regression: __str__ must not crash when book=None."""
         user = UserFactory()
         bi = BookInstance.objects.create(owner=user, book=None)
-        with pytest.raises(AttributeError):
-            str(bi)
+        result = str(bi)
+        assert "No book" in result
 
     def test_related_name_owner(self):
         user = UserFactory()

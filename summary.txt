@@ -1,0 +1,66 @@
+Here's a summary of everything generated:
+
+  ---
+  What was created
+
+  Infrastructure
+
+  File: library/settings_test.py
+  Purpose: Minimal Django settings for the test suite (in-memory SQLite, no broken apps)
+  ────────────────────────────────────────
+  File: booklibrary/tests/urls.py
+  Purpose: Minimal URLconf that replaces the broken library/urls.py (no robots, no debug_toolbar, no blog)
+  ────────────────────────────────────────
+  File: booklibrary/tests/conftest.py
+  Purpose: Shared factories (User, Book, Author, Genre, etc.) + setup_request() helper that attaches sessions and messages
+    to RequestFactory requests
+  ────────────────────────────────────────
+  File: pytest.ini
+  Purpose: Updated to point at library.settings_test
+
+  Test files
+
+  File: test_models.py
+  Coverage: Already comprehensive — left untouched (671 lines)
+  ────────────────────────────────────────
+  File: test_views.py
+  Coverage: index, BookListView (all 7 search modes + dups), BookDetailView, AuthorListView, AuthorDetailView,
+    LocationListView, LocationDetailView, GenreListView, BookSearchView (GET, all 4 error types, no-results, success, the
+    Genre.DoesNotExist bug), add_book (anon redirect, GET, valid POST via mocked form, duplicate, invalid),
+    BookInstanceUpdate/Delete (owner, non-owner, anon, POST delete), get_ip
+  ────────────────────────────────────────
+  File: test_forms.py
+  Coverage: SearchForm (valid, empty, missing, whitespace, long), AddForm structure (field presence, required flags,
+  max/min
+    lengths, type checks, valid with required-only, invalid without title/author/uniqueID)
+  ────────────────────────────────────────
+  File: test_google_books.py
+  Coverage: _map_error (all error codes and reasons), search_books (happy path, 2 authors, 2 categories, missing fields, no
+
+    items, network error, all 4 exception types, owned/not-owned flag, timeout value)
+
+  Run commands
+
+  # Verify test collection
+  pytest --collect-only
+
+  # Run all tests with coverage
+  pytest booklibrary/tests/ -v --cov=booklibrary --cov-report=html
+
+  # Run a single test file
+  pytest booklibrary/tests/test_google_books.py -v --tb=short
+
+  # Run a single test class
+  pytest booklibrary/tests/test_views.py::TestBookSearchView -v
+
+  # Run one specific test
+  pytest booklibrary/tests/test_views.py::TestBookSearchView::test_post_quota_error_shows_error_message -v
+
+  Bugs documented by tests
+
+  1. BookSearchView.post — crashes with Genre.DoesNotExist when results come back and no Genre named 'None' exists in the
+  DB (test_post_with_results_missing_none_genre_raises).
+  2. BookInstance.__str__ — crashes with AttributeError when book=None (test_str_raises_when_book_is_none in existing
+  test_models.py).
+  3. AddForm — choices evaluated at import time (empty DB), making Book_Location POST validation impossible without mocking
+   the form class.

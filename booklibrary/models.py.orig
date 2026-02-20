@@ -136,8 +136,7 @@ class BookInstance(models.Model):
 
     def __str__(self):
         """String for representing the Model object."""
-        title = self.book.title if self.book_id else "No book"
-        return f'{self.id} ({title})'
+        return f'{self.id} ({self.book.title})'
 
 
 class Author(models.Model):

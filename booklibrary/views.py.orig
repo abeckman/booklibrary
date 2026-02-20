@@ -201,11 +201,9 @@ class BookSearchView(TemplateView):
             ctx = {'form': searchform}
             return render(request, self.template_name, ctx)
         else:
-            saved_genre = request.session.get('repeat_genre')
-            genre_obj = Genre.objects.filter(name=saved_genre).first() if saved_genre else None
-            genre_initial = [genre_obj.id] if genre_obj else []
-            add_form = AddForm(initial={'Book_Genre': genre_initial})
-            add_form.fields['Book_Genre'].initial = genre_initial
+            saved_genre = request.session.get('repeat_genre', 'None')
+            add_form = AddForm(initial={'Book_Genre': Genre.objects.get(name = saved_genre).id})
+            add_form.fields['Book_Genre'].initial = [Genre.objects.get(name = saved_genre).id]
             #form.fields['section'].initial = "Changes Approval"
             ctx = {
                     'form': add_form,

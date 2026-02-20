@@ -16,15 +16,29 @@ class SearchForm(forms.Form):
 # Offer option of new genre
 
 class AddForm(forms.Form):
+# NOTE: for whatever reason, when the database hasn't been created, makemigrations and
+#   check will get a table doesn't exist error on the next several lines. All have to
+#   be commented out until the db is created, then restored.
+
 # MultipleChoiceField allows for multiple choice, but shows four of the choices initially.
-    Book_Genre = forms.MultipleChoiceField(choices=[], required=False)
-    Book_Location = forms.ChoiceField(choices=[], required=False)
-    Book_Series = forms.ChoiceField(choices=[], required=False)
-    Book_Keywords = forms.ChoiceField(choices=[], required=False,
+    genres = [(choice.pk, choice.name) for choice in Genre.objects.all()]
+    #Book_Genre = forms.ChoiceField(choices = genres, initial='6', required=False)
+    Book_Genre = forms.MultipleChoiceField(choices = genres, required=False)
+    locations = [(choice.pk, choice.name) for choice in Location.objects.all()]
+    Book_Location = forms.ChoiceField(choices = locations, required=False)
+    series = [(choice.pk, choice.name) for choice in Series.objects.all()]
+    Book_Series = forms.ChoiceField(choices=series, initial=series[0] if series else None, required=False)
+    keywords = [(choice.pk, choice.name) for choice in Keywords.objects.all()]
+    #Book_Keywords = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple(),
+    Book_Keywords = forms.ChoiceField(choices=keywords, initial=keywords[0] if keywords else None, required=False,
         help_text="Keywords (up to 3)")
 # https://www.geeksforgeeks.org/choicefield-django-forms/
 # https://stackoverflow.com/questions/31035112/django-init-got-an-unexpected-keyword-argument-choices
 # https://stackoverflow.com/questions/34781524/django-populate-a-form-choicefield-field-from-a-queryset-and-relate-the-choice-b
+    #gender = forms.ChoiceField(widget=forms.RadioSelect(
+    #             choices=Evangelized.GENDER_CHOICES), help_text="Gender")
+    #allGenre = forms.ChoiceField(choises=[(choice.pk, choice) for choice in Genre.objects.all()], help_text="Genre")
+    #allGenre = forms.ModelChoiceField(queryset=Genre.objects.all())
     title = forms.CharField(widget = forms.HiddenInput(), required=True, max_length=200, min_length=2, strip = False)
     author1 = forms.CharField(widget = forms.HiddenInput(), required=True, max_length=50, strip = False)
     author2 = forms.CharField(widget = forms.HiddenInput(), required=False, max_length=50, strip = False)
@@ -39,20 +53,3 @@ class AddForm(forms.Form):
     uniqueID = forms.CharField(widget = forms.HiddenInput(), required=True, max_length=200)
     status = forms.CharField(widget = forms.HiddenInput(), required=True, max_length = 50, strip = False)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        genres = [(c.pk, c.name) for c in Genre.objects.all()]
-        self.fields['Book_Genre'].choices = genres
-
-        locations = [(c.pk, c.name) for c in Location.objects.all()]
-        self.fields['Book_Location'].choices = locations
-
-        series = [(c.pk, c.name) for c in Series.objects.all()]
-        self.fields['Book_Series'].choices = series
-        if series:
-            self.fields['Book_Series'].initial = series[0]
-
-        keywords = [(c.pk, c.name) for c in Keywords.objects.all()]
-        self.fields['Book_Keywords'].choices = keywords
-        if keywords:
-            self.fields['Book_Keywords'].initial = keywords[0]
