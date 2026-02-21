@@ -35,7 +35,6 @@
         }
       }
       </style>
-{% load bootstrap_icons %}
 {% block head %} {% endblock head %}
 </head>
 
@@ -107,23 +106,23 @@
                       'xyz' to use in the if statement -->
                     {% url 'booklibrary:index' as xyz %}
                     <li class="nav-item" {% if request.get_full_path == xyz %}class="active"{% endif %}>
-                        <a href="{% url 'index' %}">Home</a></li>
+                        <a href="{{ xyz }}">Home</a></li>
 
                     {% url 'booklibrary:books' as abc1 %}
                     <li class="nav-item" {% if request.get_full_path == abc1 %}class="active"{% endif %}>
-                        <a href="{% url 'books' %}">All books</a></li>
+                        <a href="{{ abc1 }}">All books</a></li>
 
                     {% url 'booklibrary:authors' as abc2 %}
                     <li class="nav-item" {% if request.get_full_path == abc2 %}class="active"{% endif %}>
-                        <a href="{% url 'authors' %}">All authors</a></li>
+                        <a href="{{ abc2 }}">All authors</a></li>
 
                     {% url 'booklibrary:locations' as abc3 %}
                     <li class="nav-item" {% if request.get_full_path == abc3 %}class="active"{% endif %}>
-                        <a href="{% url 'locations' %}">All locations</a></li>
+                        <a href="{{ abc3 }}">All locations</a></li>
 
                     {% url 'booklibrary:book-search' as abc4 %}
-                    <li class="nav-item" {% if request.get_full_path == abc3 %}class="active"{% endif %}>
-                        <a href="{% url 'book-search' %}">Add a book</a></li>
+                    <li class="nav-item" {% if request.get_full_path == abc4 %}class="active"{% endif %}>
+                        <a href="{{ abc4 }}">Add a book</a></li>
                 </ul>
             </div>
         </nav>

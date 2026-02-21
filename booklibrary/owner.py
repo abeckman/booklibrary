@@ -2,6 +2,7 @@
 from django.views.generic import CreateView, UpdateView, DeleteView, ListView, DetailView
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import Http404, HttpResponseNotFound
 
 # Code from dj4e
 
@@ -45,6 +46,12 @@ class OwnerUpdateView(LoginRequiredMixin, UpdateView):
         qs = super(OwnerUpdateView, self).get_queryset()
         return qs.filter(owner=self.request.user)
 
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except Http404:
+            return HttpResponseNotFound()
+
 
 class OwnerDeleteView(LoginRequiredMixin, DeleteView):
     """
@@ -56,6 +63,12 @@ class OwnerDeleteView(LoginRequiredMixin, DeleteView):
         print('delete get_queryset called')
         qs = super(OwnerDeleteView, self).get_queryset()
         return qs.filter(owner=self.request.user)
+
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except Http404:
+            return HttpResponseNotFound()
 
 # References
 

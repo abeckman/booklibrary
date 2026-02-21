@@ -17,7 +17,7 @@ urlpatterns = [
 
     # All booklibrary routes under /booklibrary/ so that get_absolute_url()
     # results (e.g. /booklibrary/author/<pk>) match what the models produce.
-    path("booklibrary/", include([
+    path("booklibrary/", include(([
         path("", views.index, name="index"),
         path("books/", views.BookListView.as_view(), name="books"),
         path("book/<int:pk>", views.BookDetailView.as_view(), name="book-detail"),
@@ -41,5 +41,5 @@ urlpatterns = [
         path("ip/", views.get_ip),
         path("sitemap.xml", sitemap, {"sitemaps": sitemaps_dict},
              name="django.contrib.sitemaps.views.sitemap"),
-    ])),
+    ], 'booklibrary'))),
 ]

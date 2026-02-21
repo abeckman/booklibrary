@@ -1,5 +1,5 @@
 from django.db.models import Q # from polls
-from django.http import HttpResponse # originally from polls app - not used?
+from django.http import HttpResponse, Http404, HttpResponseNotFound # originally from polls app - not used?
 from django.shortcuts import render, redirect # render from polls
 from django.urls import reverse_lazy # reverse from polls and catalog, reverse_lazy from catalog
 from booklibrary.models import Book, Author, BookInstance, Genre, Language, Keywords, Location, Series # modified from catalog
@@ -16,6 +16,7 @@ import unidecode
 import os
 from django.contrib import messages # added to allow passing messages
 from django.views.generic import TemplateView
+from django.template.response import TemplateResponse
 #from django.views.generic.list import ListView
 from .forms import SearchForm, AddForm
 from .utils.pagination import paginate_queryset
@@ -106,7 +107,7 @@ class BookListView(generic.ListView): # from catalog
 
         page_obj = paginate_queryset(request, book_list, PAGE_SIZE)
         ctx = {'page_obj' : page_obj, 'search': strval}
-        return render(request, self.template_name, ctx)
+        return TemplateResponse(request, self.template_name, ctx)
 
 # References
 
@@ -147,15 +148,21 @@ class GenreListView(generic.ListView): # from catalog
 
         page_obj = paginate_queryset(request, genre_list, PAGE_SIZE)
         ctx = {'page_obj' : page_obj, 'search': strval}
-        return render(request, self.template_name, ctx)
+        return TemplateResponse(request, self.template_name, ctx)
 
 class BookDetailView(generic.DetailView): # from catalog
     """Generic class-based detail view for a book."""
     model = Book
 
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except Http404:
+            return HttpResponseNotFound()
+
 class BookSearchView(TemplateView):
     template_name = 'booklibrary/book_search.html'
-    success_url = reverse_lazy('books')
+    success_url = reverse_lazy('booklibrary:books')
 
     def get(self, request):
         search_form = SearchForm()
@@ -215,7 +222,7 @@ class BookSearchView(TemplateView):
             # According to the tutorial, the following should be a HttpResponseRedirect
             # to prevent the user from backing up to the previous screen. In this case
             # we don't touch the database so it doesn't matter.
-            return render(request, 'booklibrary/book_results.html', ctx)
+            return TemplateResponse(request, 'booklibrary/book_results.html', ctx)
 #https://stackoverflow.com/questions/657607/setting-the-selected-value-on-a-django-forms-choicefield
 
 class AuthorListView(generic.ListView): # from catalog
@@ -244,11 +251,17 @@ class AuthorListView(generic.ListView): # from catalog
 
         page_obj = paginate_queryset(request, author_list, PAGE_SIZE)
         ctx = {'page_obj' : page_obj, 'search': strval}
-        return render(request, self.template_name, ctx)
+        return TemplateResponse(request, self.template_name, ctx)
 
 class AuthorDetailView(generic.DetailView): # from catalog
     """Generic class-based detail view for an author."""
     model = Author
+
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except Http404:
+            return HttpResponseNotFound()
 
 class LocationListView(generic.ListView):
     """Generic class-based list view for a list of Location."""
@@ -263,7 +276,7 @@ class LocationListView(generic.ListView):
         else :
             location_list = Location.objects.all().order_by('name')
         page_obj = paginate_queryset(request, location_list, PAGE_SIZE)
-        return render(request, self.template_name, {"page_obj": page_obj})
+        return TemplateResponse(request, self.template_name, {"page_obj": page_obj})
 
 class LocationDetailView(generic.DetailView):
     """Generic class-based list view for a list of the content of a location."""
@@ -277,7 +290,7 @@ class LocationDetailView(generic.DetailView):
 
         page_obj = paginate_queryset(request, location_list, PAGE_SIZE)
         ctx = {'page_obj' : page_obj, 'location': location[0]}
-        return render(request, self.template_name, ctx)
+        return TemplateResponse(request, self.template_name, ctx)
 
 
 @login_required
@@ -294,6 +307,8 @@ def add_book(request):
             myauthor2 = form.cleaned_data['author2']
             mypublisher = form.cleaned_data['publisher']
             mypublishedOn = form.cleaned_data['publishedOn']
+            if isinstance(mypublishedOn, str) and not mypublishedOn:
+                mypublishedOn = None
             if isinstance(mypublishedOn, str) and len(mypublishedOn) == 4:
                 mypublishedOn = datetime(int(mypublishedOn[0:4]), 1, 1);
             if isinstance(mypublishedOn, str) and len(mypublishedOn) == 7:
@@ -314,7 +329,7 @@ def add_book(request):
             myBook_Keywords = form.cleaned_data['Book_Keywords']
             myBook_Series = form.cleaned_data['Book_Series']
 # https://stackoverflow.com/questions/657607/setting-the-selected-value-on-a-django-forms-choicefield
-            if myBook_Genre[0] != 'None':
+            if myBook_Genre and myBook_Genre[0] != 'None':
                 print("***Just before testing repeat_genre***")
                 #if 'repeat_genre' in request.session:
                 saved_genre = request.session.get('repeat_genre', myBook_Genre[0])
@@ -356,10 +371,12 @@ def add_book(request):
 # https://stackoverflow.com/questions/46314246/how-to-update-a-foreign-key-field-in-django-models-py
 # https://stackoverflow.com/questions/1194737/how-to-update-manytomany-field-in-django
 
-            myBook, created = Book.objects.filter(Q(uniqueID__icontains = myuniqueID)).get_or_create(
-                    title = mytitle, summary = mydescription, publisher = mypublisher,
-                    publishedDate = mypublishedOn, previewLink = mypreviewLink, imageLink = myimageLink,
-                    uniqueID = myuniqueID, contentType = "PH")
+            myBook, created = Book.objects.get_or_create(
+                    uniqueID = myuniqueID,
+                    defaults = dict(
+                        title = mytitle, summary = mydescription, publisher = mypublisher,
+                        publishedDate = mypublishedOn, previewLink = mypreviewLink,
+                        imageLink = myimageLink, contentType = "PH"))
             if not created : # we have a duplicate book
                 messages.add_message(request, messages.INFO, 'Duplicate book')
 # Existing code deals with duplicate by adding a new instance. Probably should
@@ -452,7 +469,7 @@ def add_book(request):
     # if a GET (or any other method) we'll create a blank form
     else:
         form = AddForm()
-    return render(request, 'book_request.html', {'form': form})
+    return render(request, 'booklibrary/book_search.html', {'form': form})
 
 class AuthorCreate(LoginRequiredMixin, CreateView): # from catalog
     model = Author
@@ -466,7 +483,7 @@ class AuthorUpdate(PermissionRequiredMixin, UpdateView): # from catalog
 
 class AuthorDelete(PermissionRequiredMixin, DeleteView): # from catalog
     model = Location
-    success_url = reverse_lazy('authors')
+    success_url = reverse_lazy('booklibrary:authors')
     permission_required = 'booklibrary.author.can_delete_author'
 
 class LocationCreate(LoginRequiredMixin, CreateView):
@@ -480,7 +497,7 @@ class LocationUpdate(PermissionRequiredMixin, UpdateView):
 
 class LocationDelete(PermissionRequiredMixin, DeleteView):
     model = Location
-    success_url = reverse_lazy('locations')
+    success_url = reverse_lazy('booklibrary:locations')
     permission_required = 'booklibrary.location.can_delete_location'
 
 class BookCreate(LoginRequiredMixin, TemplateView): # almost nothing left from catalog
@@ -512,18 +529,18 @@ class BookUpdate(PermissionRequiredMixin, UpdateView): # from catalog
 
 class BookDelete(PermissionRequiredMixin, DeleteView): # from catalog
     model = Book
-    success_url = reverse_lazy('books')
+    success_url = reverse_lazy('booklibrary:books')
     permission_required = 'booklibrary.book.can_delete_book'
 
 class BookInstanceUpdate(OwnerUpdateView):
     model = BookInstance
-    success_url = reverse_lazy('books')
+    success_url = reverse_lazy('booklibrary:books')
     fields = ['book', 'location']
 
 
 class BookInstanceDelete(OwnerDeleteView):
     model = BookInstance
-    success_url = reverse_lazy('books')
+    success_url = reverse_lazy('booklibrary:books')
 
 def get_ip(request):
   return HttpResponse(request.META['REMOTE_ADDR'])
