@@ -6,6 +6,8 @@ from django.contrib.sitemaps.views import sitemap # from Django 4 by Example
 from django.contrib import sitemaps
 from .sitemaps import BookSitemap
 
+app_name = "booklibrary"
+
 sitemaps_dict = {
     'books': BookSitemap,
 }
