@@ -77,6 +77,7 @@ class AuthorFactory(factory.django.DjangoModelFactory):
 class BookFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Book
+        skip_postgeneration_save = True
 
     title = factory.Sequence(lambda n: f"Book Title {n}")
     summary = factory.Faker("paragraph")

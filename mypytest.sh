@@ -1,2 +1,2 @@
 #!/bin/sh
-pytest booklibrary/tests/test_models.py -v --tb=short
+pytest booklibrary/tests/test_views.py -v --tb=short

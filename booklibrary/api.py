@@ -7,7 +7,5 @@ from booklibrary.serializers import BookSerializer
 
 class BookViewSet(viewsets.ModelViewSet):
 	queryset = Book.objects.all()
-	permission_classes = [
-	permissions.AllowAny
-	]
+	permission_classes = [permissions.IsAuthenticated]
 	serializer_class = BookSerializer
