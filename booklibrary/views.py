@@ -527,10 +527,30 @@ class BookUpdate(PermissionRequiredMixin, UpdateView): # from catalog
     fields = ['title', 'authors', 'summary', 'genre', 'language', 'publisher', 'publishedDate', 'keywords', 'series']
     permission_required = 'booklibrary.book.can_change_book'
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.filter(bookinstance__owner=self.request.user).distinct()
+
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except Http404:
+            return HttpResponseNotFound()
+
 class BookDelete(PermissionRequiredMixin, DeleteView): # from catalog
     model = Book
     success_url = reverse_lazy('booklibrary:books')
     permission_required = 'booklibrary.book.can_delete_book'
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.filter(bookinstance__owner=self.request.user).distinct()
+
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except Http404:
+            return HttpResponseNotFound()
 
 class BookInstanceUpdate(OwnerUpdateView):
     model = BookInstance
