@@ -120,6 +120,9 @@
                     <li class="nav-item" {% if request.get_full_path == abc3 %}class="active"{% endif %}>
                         <a href="{{ abc3 }}">All locations</a></li>
 
+                    <li class="nav-item">
+                        <a href="{% url 'booklibrary:books' %}?dups=dups">Duplicate books</a></li>
+
                     {% url 'booklibrary:book-search' as abc4 %}
                     <li class="nav-item" {% if request.get_full_path == abc4 %}class="active"{% endif %}>
                         <a href="{{ abc4 }}">Add a book</a></li>

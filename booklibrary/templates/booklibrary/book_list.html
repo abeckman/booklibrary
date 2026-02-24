@@ -31,12 +31,6 @@
 <!--            <br><br>
             <input type="submit" value="Submit"> -->
         </form>
-        <form>
-            {% csrf_token %}
-            {% load crispy_forms_tags %}
-            <br><br>
-            <button name="dups" type="submit" value="dups">List of duplicate books</button>
-        </form>
     </div>
 
     {% if page_obj %}
