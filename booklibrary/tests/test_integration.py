@@ -66,12 +66,13 @@ def _add_book_payload(location, **overrides):
 
     Key constraints imposed by the view's implementation:
 
-    - ``Book_Location`` **must** be a real Location PK.  Even though the
-      form field is ``required=False``, the view always calls
+    - ``book_index`` selects which entry in ``session['google_books_results']``
+      the view uses.  Call ``_setup_session(client, payload)`` before posting
+      so the session entry exists at index 0.
+    - ``Book_Location`` **must** be a real Location PK.  The view calls
       ``Location.objects.get(id=Book_Location)`` unconditionally.
-    - ``Book_Keywords`` should be ``""`` (empty string).  The view iterates
-      over the raw string value character-by-character, so a non-empty value
-      would be mis-parsed as individual character PKs.
+    - ``Book_Keywords`` should be ``""`` (empty string).  An empty value
+      causes the view's keyword-processing loop to be skipped entirely.
     - ``Book_Series`` should be ``""`` (empty string).  An empty value is
       falsy and causes the view's series-processing block to be skipped
       entirely.
@@ -79,6 +80,7 @@ def _add_book_payload(location, **overrides):
       ``datetime`` by the view, which Django's DateField accepts.
     """
     data = {
+        "book_index": "0",
         "title": "Dune",
         "author1": "Frank Herbert",
         "author2": "",
@@ -99,6 +101,39 @@ def _add_book_payload(location, **overrides):
     }
     data.update(overrides)
     return data
+
+
+def _setup_session(client, payload):
+    """
+    Pre-populate the client session with ``google_books_results`` so that
+    ``add_book`` can read book data via ``book_index``.
+
+    The view reads book fields from the session (not from POST), so this must
+    be called before ``client.post()`` for any test that expects the view to
+    proceed past the session-lookup guard.
+
+    The list order matches the view's positional reads:
+    [title, author1, author2, publisher, publishedOn, description,
+     genre1, genre2, language, previewLink, imageLink, uniqueID, status]
+    """
+    book_data = [
+        payload.get("title", ""),
+        payload.get("author1", ""),
+        payload.get("author2", ""),
+        payload.get("publisher", ""),
+        payload.get("publishedOn", ""),
+        payload.get("description", ""),
+        payload.get("genre1", ""),
+        payload.get("genre2", ""),
+        payload.get("language", ""),
+        payload.get("previewLink", ""),
+        payload.get("imageLink", ""),
+        payload.get("uniqueID", ""),
+        payload.get("status", ""),
+    ]
+    session = client.session
+    session["google_books_results"] = [book_data]
+    session.save()
 
 
 # ── 1. Authentication / redirect behaviour ───────────────────────────────────
@@ -163,10 +198,9 @@ class TestAddBookWorkflow:
         location = LocationFactory()
         client.force_login(user)
 
-        response = client.post(
-            reverse("booklibrary:book-add"),
-            data=_add_book_payload(location),
-        )
+        payload = _add_book_payload(location)
+        _setup_session(client, payload)
+        response = client.post(reverse("booklibrary:book-add"), data=payload)
 
         assert response.status_code == 302
         assert Book.objects.filter(title="Dune").exists()
@@ -179,10 +213,9 @@ class TestAddBookWorkflow:
         location = LocationFactory()
         client.force_login(user)
 
-        client.post(
-            reverse("booklibrary:book-add"),
-            data=_add_book_payload(location),
-        )
+        payload = _add_book_payload(location)
+        _setup_session(client, payload)
+        client.post(reverse("booklibrary:book-add"), data=payload)
 
         book = Book.objects.get(title="Dune")
         assert book.genre.filter(name="Science Fiction").exists()
@@ -195,10 +228,9 @@ class TestAddBookWorkflow:
         location = LocationFactory()
         client.force_login(user)
 
-        client.post(
-            reverse("booklibrary:book-add"),
-            data=_add_book_payload(location),
-        )
+        payload = _add_book_payload(location)
+        _setup_session(client, payload)
+        client.post(reverse("booklibrary:book-add"), data=payload)
 
         book = Book.objects.get(title="Dune")
         bi = BookInstance.objects.get(book=book)
@@ -214,10 +246,9 @@ class TestAddBookWorkflow:
         BookFactory(title="Existing Dune", uniqueID="dune-dup-001")
         client.force_login(user)
 
-        response = client.post(
-            reverse("booklibrary:book-add"),
-            data=_add_book_payload(location, uniqueID="dune-dup-001"),
-        )
+        payload = _add_book_payload(location, uniqueID="dune-dup-001")
+        _setup_session(client, payload)
+        response = client.post(reverse("booklibrary:book-add"), data=payload)
 
         # View still redirects; message is queued but not yet rendered.
         assert any("Duplicate" in m for m in _msgs(response))

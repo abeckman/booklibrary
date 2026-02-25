@@ -37,6 +37,7 @@ Will post to book-add after user picks a book -->
 		    <i> {{ item.12 }} </i>
 		    <form method="post" action="{% url 'booklibrary:book-add' %}">
 	            {% csrf_token %}
+	            <input type="hidden" name="book_index" value="{{ forloop.counter0 }}">
 	            {# Include the hidden fields #}
 	            {% for hidden in form.hidden_fields %}
                 {{ hidden }}

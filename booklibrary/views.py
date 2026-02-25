@@ -208,6 +208,7 @@ class BookSearchView(TemplateView):
             ctx = {'form': searchform}
             return render(request, self.template_name, ctx)
         else:
+            request.session['google_books_results'] = books
             saved_genre = request.session.get('repeat_genre')
             genre_obj = Genre.objects.filter(name=saved_genre).first() if saved_genre else None
             genre_initial = [genre_obj.id] if genre_obj else []
@@ -302,11 +303,17 @@ def add_book(request):
         # create a form instance and populate it with data from the request:
         form = AddForm(request.POST)
         if form.is_valid():
-            mytitle=form.cleaned_data['title']
-            myauthor1 = form.cleaned_data['author1']
-            myauthor2 = form.cleaned_data['author2']
-            mypublisher = form.cleaned_data['publisher']
-            mypublishedOn = form.cleaned_data['publishedOn']
+            try:
+                book_index = int(request.POST.get('book_index', ''))
+                book_data = request.session['google_books_results'][book_index]
+            except (ValueError, TypeError, KeyError, IndexError):
+                messages.error(request, "Invalid book selection. Please search again.")
+                return redirect('booklibrary:book-search')
+            mytitle = book_data[0]
+            myauthor1 = book_data[1]
+            myauthor2 = book_data[2]
+            mypublisher = book_data[3]
+            mypublishedOn = book_data[4]
             if isinstance(mypublishedOn, str) and not mypublishedOn:
                 mypublishedOn = None
             if isinstance(mypublishedOn, str) and len(mypublishedOn) == 4:
@@ -315,14 +322,14 @@ def add_book(request):
                 mypublishedOn = datetime(int(mypublishedOn[0:4]), int(mypublishedOn[5:7]), 1);
             if isinstance(mypublishedOn, str) and mypublishedOn == "Not Present":
                 mypublishedOn = datetime.now();
-            mydescription = form.cleaned_data['description']
-            mygenre1 = form.cleaned_data['genre1']
-            mygenre2 = form.cleaned_data['genre2']
-            mylanguage = form.cleaned_data['language']
-            mypreviewLink = form.cleaned_data['previewLink']
-            myimageLink = form.cleaned_data['imageLink']
-            myuniqueID = form.cleaned_data['uniqueID']
-            mystatus = form.cleaned_data['status']
+            mydescription = book_data[5]
+            mygenre1 = book_data[6]
+            mygenre2 = book_data[7]
+            mylanguage = book_data[8]
+            mypreviewLink = book_data[9]
+            myimageLink = book_data[10]
+            myuniqueID = book_data[11]
+            mystatus = book_data[12]
 #            myBook_Genre = Genre.objects.get(id=form.cleaned_data['Book_Genre']).name
             myBook_Genre = form.cleaned_data['Book_Genre']
             myBook_Location = Location.objects.get(id=form.cleaned_data['Book_Location']).name
@@ -462,7 +469,7 @@ def add_book(request):
 
 #            books=Book.objects.all()
 #            return redirect('/booklibrary/books/', {'books':books})
-            return redirect('/book/'+str(myBook.pk)+'/update/')
+            return redirect(reverse_lazy('booklibrary:book-update', args=[myBook.pk]))
         else:
             print('opps, form not valid')
             return render(request, 'booklibrary/book_results.html', {'form': form})
@@ -478,7 +485,7 @@ class AuthorCreate(LoginRequiredMixin, CreateView): # from catalog
 
 class AuthorUpdate(PermissionRequiredMixin, UpdateView): # from catalog
     model = Author
-    fields = '__all__' # Not recommended (potential security issue if more fields added)
+    fields = ['full_name', 'first_name', 'last_name', 'date_of_birth', 'date_of_death']
     permission_required = 'booklibrary.author.can_change_author'
 
 class AuthorDelete(PermissionRequiredMixin, DeleteView): # from catalog
@@ -492,7 +499,7 @@ class LocationCreate(LoginRequiredMixin, CreateView):
 
 class LocationUpdate(PermissionRequiredMixin, UpdateView):
     model = Location
-    fields = '__all__' # Not recommended (potential security issue if more fields added)
+    fields = ['name']
     permission_required = 'booklibrary.location.can_change_location'
 
 class LocationDelete(PermissionRequiredMixin, DeleteView):
@@ -525,10 +532,12 @@ class BookCreate(LoginRequiredMixin, TemplateView): # almost nothing left from c
 class BookUpdate(PermissionRequiredMixin, UpdateView): # from catalog
     model = Book
     fields = ['title', 'authors', 'summary', 'genre', 'language', 'publisher', 'publishedDate', 'keywords', 'series']
-    permission_required = 'booklibrary.book.can_change_book'
+    permission_required = 'booklibrary.change_book'
 
     def get_queryset(self):
         qs = super().get_queryset()
+        if self.request.user.is_superuser:
+            return qs
         return qs.filter(bookinstance__owner=self.request.user).distinct()
 
     def dispatch(self, request, *args, **kwargs):
@@ -540,10 +549,12 @@ class BookUpdate(PermissionRequiredMixin, UpdateView): # from catalog
 class BookDelete(PermissionRequiredMixin, DeleteView): # from catalog
     model = Book
     success_url = reverse_lazy('booklibrary:books')
-    permission_required = 'booklibrary.book.can_delete_book'
+    permission_required = 'booklibrary.delete_book'
 
     def get_queryset(self):
         qs = super().get_queryset()
+        if self.request.user.is_superuser:
+            return qs
         return qs.filter(bookinstance__owner=self.request.user).distinct()
 
     def dispatch(self, request, *args, **kwargs):

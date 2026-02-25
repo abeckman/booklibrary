@@ -464,26 +464,11 @@ class TestAddBookView:
         time (empty DB), so real form validation cannot work in tests.
         """
         location = LocationFactory()
-        genre = GenreFactory(name="Science Fiction")
-        keyword = KeywordsFactory(name="Space")
-        series = SeriesFactory(name="Foundation")
+        GenreFactory(name="Science Fiction")
 
         mock_form = MagicMock()
         mock_form.is_valid.return_value = True
         mock_form.cleaned_data = {
-            "title": "Dune",
-            "author1": "Frank Herbert",
-            "author2": "",
-            "publisher": "Chilton Books",
-            "publishedOn": "1965",
-            "description": "A sci-fi epic.",
-            "genre1": "Science Fiction",
-            "genre2": "",
-            "language": "English",
-            "previewLink": "https://example.com",
-            "imageLink": "https://example.com/img.jpg",
-            "uniqueID": "dune-001",
-            "status": "PH",
             "Book_Genre": [],
             "Book_Location": str(location.pk),
             "Book_Keywords": [],
@@ -491,8 +476,18 @@ class TestAddBookView:
         }
         MockForm.return_value = mock_form
 
-        request = rf.post("/booklibrary/book/add/", {})
-        setup_request(request, user=user)
+        # Session data matches the format stored by BookSearchView:
+        # [title, author1, author2, publisher, publishedOn, description,
+        #  genre1, genre2, language, previewLink, imageLink, uniqueID, status]
+        book_data = [
+            "Dune", "Frank Herbert", "", "Chilton Books", "1965", "A sci-fi epic.",
+            "Science Fiction", "", "English", "https://example.com",
+            "https://example.com/img.jpg", "dune-001", "PH",
+        ]
+        session_data = {"google_books_results": [book_data]}
+
+        request = rf.post("/booklibrary/book/add/", {"book_index": "0"})
+        setup_request(request, user=user, session_data=session_data)
         response = add_book(request)
 
         assert response.status_code == 302
@@ -506,19 +501,6 @@ class TestAddBookView:
         mock_form = MagicMock()
         mock_form.is_valid.return_value = True
         mock_form.cleaned_data = {
-            "title": existing.title,
-            "author1": "",
-            "author2": "",
-            "publisher": "",
-            "publishedOn": "",
-            "description": existing.summary,
-            "genre1": "",
-            "genre2": "",
-            "language": "English",
-            "previewLink": "",
-            "imageLink": "",
-            "uniqueID": existing.uniqueID,
-            "status": "PH",
             "Book_Genre": [],
             "Book_Location": str(location.pk),
             "Book_Keywords": [],
@@ -526,8 +508,17 @@ class TestAddBookView:
         }
         MockForm.return_value = mock_form
 
-        request = rf.post("/booklibrary/book/add/", {})
-        setup_request(request, user=user)
+        # Session data matches the format stored by BookSearchView:
+        # [title, author1, author2, publisher, publishedOn, description,
+        #  genre1, genre2, language, previewLink, imageLink, uniqueID, status]
+        book_data = [
+            existing.title, "", "", "", None, existing.summary,
+            "", "", "English", "", "", existing.uniqueID, "PH",
+        ]
+        session_data = {"google_books_results": [book_data]}
+
+        request = rf.post("/booklibrary/book/add/", {"book_index": "0"})
+        setup_request(request, user=user, session_data=session_data)
         add_book(request)
 
         msgs = get_messages(request)
