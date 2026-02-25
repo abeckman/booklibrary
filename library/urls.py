@@ -15,7 +15,7 @@ urlpatterns = [
 
     # Static HTML site browser
     path('site/<path:path>', serve,
-         {'document_root': os.path.join(BASE_DIR, 'site'), 'show_indexes': True},
+         {'document_root': os.path.join(BASE_DIR, 'site'), 'show_indexes': False},
          name='site_path'),
 
     path('favicon.ico', serve, {

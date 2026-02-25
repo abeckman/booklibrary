@@ -2,6 +2,7 @@ from urllib.parse import urlencode
 
 from django import template
 from django.utils.encoding import force_str
+from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
 
 register = template.Library()
@@ -9,14 +10,14 @@ register = template.Library()
 
 def construct_query_string(context, query_params):
     # empty values will be removed
-    query_string = context["request"].path
+    path = conditional_escape(context["request"].path)
     if len(query_params):
         encoded_params = urlencode([
             (key, force_str(value))
             for (key, value) in query_params if value
         ]).replace("&", "&amp;")
-        query_string += f"?{encoded_params}"
-    return mark_safe(query_string)
+        return mark_safe(f"{path}?{encoded_params}")
+    return mark_safe(path)
 
 
 """TAGS"""
