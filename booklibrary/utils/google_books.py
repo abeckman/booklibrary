@@ -2,6 +2,7 @@
 # https://github.com/Manikaran20/Books-Inventory/blob/master/SpoonshotAssignment/googlebooks/book_search.py
 # Not much of original left
 import logging
+from urllib.parse import urlparse
 import requests
 from booklibrary.models import Book
 from django.conf import settings # pick up Google settings
@@ -11,6 +12,18 @@ logger = logging.getLogger(__name__)
 BASE_URL = getattr(settings, "GOOGLE_BOOKS_API_BASE",
     "https://www.googleapis.com/books/v1/volumes")
 API_KEY = settings.GOOGLE_BOOKS_API_KEY
+
+_EXPECTED_HOST = urlparse(BASE_URL).netloc
+
+
+def _safe_https_url(url, field):
+    """Return url only if it is an https:// URL, else log and return None."""
+    if not url:
+        return None
+    if isinstance(url, str) and urlparse(url).scheme == "https":
+        return url
+    logger.warning("Rejected non-https %s in Google Books response: %r", field, url)
+    return None
 
 class GoogleBooksError(Exception):
     """Base error for Google Books failures."""
@@ -63,11 +76,20 @@ def search_books(query, max_results=10, start_index=0):
     }
 
     try:
-        resp = requests.get(BASE_URL, params=params, timeout=5)
+        resp = requests.get(BASE_URL, params=params, timeout=5, verify=True)
     except requests.RequestException as exc:
         # Network, DNS, timeouts, etc.
         logger.warning("Google Books request failed: %s", exc)
         raise GoogleBooksError("Network error talking to Google Books") from exc
+
+    # Guard against redirect-based attacks (e.g. DNS poisoning redirecting to
+    # an attacker-controlled host that presents a valid cert for its own domain).
+    response_host = urlparse(resp.url).netloc
+    if response_host != _EXPECTED_HOST:
+        raise GoogleBooksError(
+            f"Response came from unexpected host {response_host!r}; "
+            f"expected {_EXPECTED_HOST!r}"
+        )
 
     if not resp.ok:
         _map_error(resp)
@@ -103,9 +125,9 @@ def search_books(query, max_results=10, start_index=0):
         item['volumeInfo'].setdefault('language', 'en')
         book_info.append(item["volumeInfo"].get("language"))
         item['volumeInfo'].setdefault('previewLink', 'Not Present')
-        book_info.append(item["volumeInfo"].get("previewLink"))
+        book_info.append(_safe_https_url(item["volumeInfo"].get("previewLink"), "previewLink"))
         item['volumeInfo'].setdefault("imageLinks", {'thumbnail': 'https://i.imgur.com/fnVKr.gif'})
-        book_info.append(item['volumeInfo']["imageLinks"].get("thumbnail"))
+        book_info.append(_safe_https_url(item['volumeInfo']["imageLinks"].get("thumbnail"), "imageLink"))
         book_info.append(item["id"])
         if Book.objects.filter(uniqueID = item["id"]):
             book_info.append("owned")

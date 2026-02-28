@@ -17,9 +17,12 @@ import os
 from django.contrib import messages # added to allow passing messages
 from django.views.generic import TemplateView
 from django.template.response import TemplateResponse
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
 #from django.views.generic.list import ListView
 from .forms import SearchForm, AddForm
 from .utils.pagination import paginate_queryset
+import logging
 import re, requests
 from django.utils import timezone
 from django.conf import settings
@@ -33,6 +36,8 @@ from .utils.google_books import (
 
 # The base code source for my work is based on:
 # https://github.com/mdn/django-locallibrary-tutorial
+
+logger = logging.getLogger(__name__)
 
 PAGE_SIZE = getattr(settings, "PAGE_SIZE", 24)
 
@@ -160,6 +165,7 @@ class BookDetailView(generic.DetailView): # from catalog
         except Http404:
             return HttpResponseNotFound()
 
+@method_decorator(ratelimit(key='ip', rate='20/h', method='POST', block=False), name='post')
 class BookSearchView(TemplateView):
     template_name = 'booklibrary/book_search.html'
     success_url = reverse_lazy('booklibrary:books')
@@ -170,6 +176,9 @@ class BookSearchView(TemplateView):
         return render(request, self.template_name, ctx)
 
     def post(self, request):
+        if getattr(request, 'limited', False):
+            messages.error(request, "Too many searches. Please wait a while before trying again.")
+            return render(request, self.template_name, {'form': SearchForm()})
         searchform = SearchForm(request.POST)
         if not searchform.is_valid():
             ctx = {'form': searchform}
@@ -296,10 +305,10 @@ class LocationDetailView(generic.DetailView):
 
 @login_required
 def add_book(request):
-    print("in views add_book just before test for POST")
+    logger.debug("add_book: received %s request", request.method)
     # if this is a POST request we need to process the form data
     if request.method == 'POST':
-        print("in views add_book just after if and AddForm. Before form.is_valid")
+        logger.debug("add_book: validating AddForm")
         # create a form instance and populate it with data from the request:
         form = AddForm(request.POST)
         if form.is_valid():
@@ -337,10 +346,9 @@ def add_book(request):
             myBook_Series = form.cleaned_data['Book_Series']
 # https://stackoverflow.com/questions/657607/setting-the-selected-value-on-a-django-forms-choicefield
             if myBook_Genre and myBook_Genre[0] != 'None':
-                print("***Just before testing repeat_genre***")
                 #if 'repeat_genre' in request.session:
                 saved_genre = request.session.get('repeat_genre', myBook_Genre[0])
-                print("***Got a genre: ", saved_genre, " ***")
+                logger.debug("add_book: repeat_genre=%s", saved_genre)
                 form.fields['Book_Genre'].initial = myBook_Genre[0]
                 #yourFormInstance.fields['max_number'].initial = [1]
             #else:
@@ -354,24 +362,14 @@ def add_book(request):
             #num_visits = request.session.get('num_visits', 1)
             #request.session['num_visits'] = num_visits + 1
 
-            print("***In add_book in views just below working with fields ***")
-            print(mytitle)
-            print(myauthor1)
-            print(myauthor2)
-            print(mypublisher)
-            print(mypublishedOn)
-            print(mydescription)
-            print(mygenre1)
-            print(mygenre2)
-            print(mylanguage)
-            print(mypreviewLink)
-            print(myimageLink)
-            print(myuniqueID)
-            print(mystatus)
-            print("Read genre = ", myBook_Genre)
-            print("Read location = ", myBook_Location)
-            print("Read keywords = ", myBook_Keywords)
-            print("Read series = ", myBook_Series)
+            logger.debug(
+                "add_book: title=%r author1=%r author2=%r publisher=%r published=%r "
+                "genre1=%r genre2=%r language=%r uniqueID=%r status=%r "
+                "form_genre=%r location=%r keywords=%r series=%r",
+                mytitle, myauthor1, myauthor2, mypublisher, mypublishedOn,
+                mygenre1, mygenre2, mylanguage, myuniqueID, mystatus,
+                myBook_Genre, myBook_Location, myBook_Keywords, myBook_Series,
+            )
 # https://docs.djangoproject.com/en/3.1/topics/db/search/ for unaccent_icontains
 # https://stackoverflow.com/questions/517923/what-is-the-best-way-to-remove-accents-normalize-in-a-python-unicode-string
 # https://stackoverflow.com/questions/10366045/django-how-to-save-data-to-manytomanyfield
@@ -460,7 +458,14 @@ def add_book(request):
                     myBook.keywords.add(mykeywordObject)
             myBook.save()
 
-            myLocationObject = Location.objects.get(name__contains = myBook_Location)
+            try:
+                myLocationObject = Location.objects.get(name__contains = myBook_Location)
+            except Location.DoesNotExist:
+                messages.error(request, "The selected location no longer exists. Please choose another.")
+                return render(request, 'booklibrary/book_results.html', {'form': form})
+            except Location.MultipleObjectsReturned:
+                messages.error(request, "The location name is ambiguous. Please contact an administrator.")
+                return render(request, 'booklibrary/book_results.html', {'form': form})
             myBookInstance = BookInstance.objects.create(owner=request.user, book=myBook, location=myLocationObject)
             myBookInstance.save()
 #e = myBook.update_or_create(language = mylanguageObject)
@@ -469,9 +474,9 @@ def add_book(request):
 
 #            books=Book.objects.all()
 #            return redirect('/booklibrary/books/', {'books':books})
-            return redirect(reverse_lazy('booklibrary:book-update', args=[myBook.pk]))
+            return redirect('booklibrary:book-detail', pk=myBook.pk)
         else:
-            print('opps, form not valid')
+            logger.warning("add_book: form invalid: %s", form.errors)
             return render(request, 'booklibrary/book_results.html', {'form': form})
     # if a GET (or any other method) we'll create a blank form
     else:
@@ -489,7 +494,7 @@ class AuthorUpdate(PermissionRequiredMixin, UpdateView): # from catalog
     permission_required = 'booklibrary.author.can_change_author'
 
 class AuthorDelete(PermissionRequiredMixin, DeleteView): # from catalog
-    model = Location
+    model = Author
     success_url = reverse_lazy('booklibrary:authors')
     permission_required = 'booklibrary.author.can_delete_author'
 
@@ -517,17 +522,24 @@ class BookCreate(LoginRequiredMixin, TemplateView): # almost nothing left from c
 		if addform.is_valid():
 			url=addform.cleaned_data['url']
 			key=re.findall("id=.+?[&]", url)
+			if not key:
+				messages.error(request, "Could not find a book ID in that URL. Please paste a valid Google Books URL.")
+				return render(request, 'booklibrary/book_create.html', {'form': addform})
 			temp_key=key[0][3:-1]
-		googleapikey=os.environ.get('API_KEY')
-		book_url="https://www.googleapis.com/books/v1/volumes/{}".format(temp_key)
-		r = requests.get(url=book_url, params={'key':googleapikey})
-		my_json= r.json()
-		p_link="https://books.google.co.in/books?id={}".format(temp_key)
-		q=Book(book_name=my_json['volumeInfo']['title'], ID=temp_key, preview_link='p_link', created_at= timezone.now())
-		q.save()
-		books=Book.objects.all()
+			googleapikey=os.environ.get('API_KEY')
+			if not googleapikey:
+				messages.error(request, "Book lookup is unavailable due to a configuration problem.")
+				return render(request, 'booklibrary/book_create.html', {'form': addform})
+			book_url="https://www.googleapis.com/books/v1/volumes/{}".format(temp_key)
+			r = requests.get(url=book_url, params={'key':googleapikey})
+			my_json= r.json()
+			p_link="https://books.google.co.in/books?id={}".format(temp_key)
+			q=Book(book_name=my_json['volumeInfo']['title'], ID=temp_key, preview_link='p_link', created_at= timezone.now())
+			q.save()
+			books=Book.objects.all()
 # Should be a redirect?
-		return render(request, 'booklibrary/book_list.html', {'books':books})
+			return render(request, 'booklibrary/book_list.html', {'books':books})
+		return render(request, 'booklibrary/book_create.html', {'form': addform})
 
 class BookUpdate(PermissionRequiredMixin, UpdateView): # from catalog
     model = Book
@@ -566,7 +578,7 @@ class BookDelete(PermissionRequiredMixin, DeleteView): # from catalog
 class BookInstanceUpdate(OwnerUpdateView):
     model = BookInstance
     success_url = reverse_lazy('booklibrary:books')
-    fields = ['book', 'location']
+    fields = ['location']
 
 
 class BookInstanceDelete(OwnerDeleteView):

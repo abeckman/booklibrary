@@ -18,10 +18,14 @@ from booklibrary.utils.google_books import (
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def _mock_response(status_code, json_data=None, raise_json=False):
+_GOOGLEAPIS_URL = "https://www.googleapis.com/books/v1/volumes"
+
+
+def _mock_response(status_code, json_data=None, raise_json=False, url=_GOOGLEAPIS_URL):
     resp = MagicMock()
     resp.status_code = status_code
     resp.ok = status_code < 400
+    resp.url = url
     if raise_json:
         resp.json.side_effect = ValueError("not JSON")
     else:

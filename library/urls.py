@@ -4,11 +4,18 @@ from django.urls import include, path
 from django.views.static import serve
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.auth import views as auth_views
+from ratelimit.decorators import ratelimit
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+_rate_limited_login = ratelimit(key='ip', rate='10/h', method='POST', block=True)(
+    auth_views.LoginView.as_view()
+)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/login/', _rate_limited_login, name='login'),
     path('accounts/', include('django.contrib.auth.urls')),
 
     path('booklibrary/', include(('booklibrary.urls', 'booklibrary'), namespace='booklibrary')),

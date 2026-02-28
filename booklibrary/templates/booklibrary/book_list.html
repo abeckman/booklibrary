@@ -9,7 +9,6 @@
     <div style="float:right">
 <!-- https://www.w3schools.com/howto/howto_css_search_button.asp -->
         <form>
-            {% csrf_token %}
             {% load crispy_forms_tags %}
             <input type="text" placeholder="Search.." name="search"
                 {% if search %} value="{{ search }}" {% endif %}
