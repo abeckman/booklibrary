@@ -16,7 +16,7 @@
 <div style="margin-left:20px;margin-top:20px">
 <h4>Books</h4>
 {% if request.session.location %}
-    {% for book in author.book_set.all %}
+    {% for book in author.books.all %}
         {% for copy in book.bookinstance_set.all %}
             <p><a href="{% url 'booklibrary:book-detail' book.pk %}">{{book}}</a> {{copy.location}}</p>
         {% endfor %}
@@ -24,7 +24,7 @@
     {% endfor %}
 {% else %}
     <dl>
-    {% for book in author.book_set.all %}
+    {% for book in author.books.all %}
         <dt><a href="{% url 'booklibrary:book-detail' book.pk %}">{{book}}</a> ({{book.bookinstance_set.all.count}})</dt>
         <dd>{{book.summary}}</dd>
     {% endfor %}

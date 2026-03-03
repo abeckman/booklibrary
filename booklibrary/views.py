@@ -64,55 +64,52 @@ class BookListView(generic.ListView): # from catalog
     """Generic class-based view for a list of books."""
     model = Book
     template_name = "booklibrary/book_list.html"
+    paginate_by = PAGE_SIZE
 
-    def get(self, request) :
-        dups = request.GET.get("dups", False)
-        fields = request.GET.get("fields", False)
-        strval =  request.GET.get("search", False)
-        if dups :
-            book_list = [book for book in Book.objects.with_counts() if book.num_copies > 1]
+    def get_queryset(self):
+        qs = Book.objects.all().select_related().order_by("title")
+
+        request = self.request
+        dups = request.GET.get("dups")
+        fields = request.GET.get("fields")
+        search = request.GET.get("search")
+
+        if dups:
+            # Assumes with_counts() annotates num_copies on queryset
+            qs = Book.objects.with_counts().filter(num_copies__gt=1).order_by("title")
+            return qs
 # https://docs.djangoproject.com/en/4.0/topics/db/managers/#custom-managers
 # https://stackoverflow.com/questions/5685037/django-filter-query-based-on-custom-function
 # https://stackoverflow.com/questions/27878228/django-one-to-many-relationship-number-of-objects
 # https://stackoverflow.com/questions/7714290/django-count-specific-items-of-a-many-to-one-relationship
-        elif strval and (fields == "title" or not fields):
-            # we have a search request for a simple title-only search
-            query = Q(title__icontains=strval)
-            query.add(Q(summary__icontains=strval), Q.OR)
-            book_list = Book.objects.filter(query).select_related().order_by('title')
-        elif strval and fields == "author":
-            # we have a search request for author
-            # NOTE: this will require work to refine
-            query = Q(authors__last_name__icontains=strval)
-            query.add(Q(authors__first_name__icontains=strval), Q.OR)
-            query.add(Q(authors__full_name__icontains=strval), Q.OR)
-            book_list = Book.objects.filter(query).select_related().order_by('title')
-        elif strval and fields == "genre":
-            # we have a search request for genre
-            query = Q(genre__name__icontains=strval)
-            book_list = Book.objects.filter(query).select_related().order_by('title')
-        elif strval and fields == "series":
-            # we have a search request for series
-            query = Q(series__name__icontains=strval)
-            book_list = Book.objects.filter(query).select_related().order_by('title')
-        elif strval and fields == "keyword":
-            # we have a search request for keyword
-            query = Q(keywords__name__icontains=strval)
-            book_list = Book.objects.filter(query).select_related().order_by('title')
-        else :
-            book_list = Book.objects.all().order_by('title')
 
-            # objects = Post.objects.filter(title__contains=strval).select_related().order_by('-updated_at')[:10]
+        if not search:
+            return qs
 
-            # Multi-field search
-            # __icontains for case-insensitive search
-            #query = Q(title__icontains=strval)
-            #query.add(Q(summary__icontains=strval), Q.OR)
-            #book_list = Book.objects.filter(query).select_related().order_by('title')
+        if not fields or fields == "title":
+            query = Q(title__icontains=search) | Q(summary__icontains=search)
 
-        page_obj = paginate_queryset(request, book_list, PAGE_SIZE)
-        ctx = {'page_obj' : page_obj, 'search': strval}
-        return TemplateResponse(request, self.template_name, ctx)
+        elif fields == "author":
+            query = (
+                Q(authors__last_name__icontains=search)
+                | Q(authors__first_name__icontains=search)
+                | Q(authors__full_name__icontains=search)
+            )
+
+        elif fields == "genre":
+            query = Q(genre__name__icontains=search)
+
+        elif fields == "series":
+            query = Q(series__name__icontains=search)
+
+        elif fields == "keyword":
+            query = Q(keywords__name__icontains=search)
+
+        else:
+            # Unknown field: fallback to base queryset
+            return qs
+
+        return qs.filter(query).distinct()
 
 # References
 
@@ -588,36 +585,4 @@ class BookInstanceDelete(OwnerDeleteView):
 def get_ip(request):
   return HttpResponse(request.META['REMOTE_ADDR'])
 
-###############################################################################################
-
-#class BooksUpdate(TemplateView):
-#	def get(self, request, ID):
-#		form=UpdateForm
-#		return render(request, 'googlebooks/update.html', {'form':form})
-#	def post(self, request, ID):
-#		updateform= UpdateForm(request.POST)
-#		if updateform.is_valid():
-#			title=updateform.cleaned_data['title']
-#			preview_link=updateform.cleaned_data['previewLink']
-#			key=updateform.cleaned_data['ID']
-#			copies=updateform.cleaned_data['copies']
-
-#			q=Books.objects.filter(ID=ID)
-#			q.book_name=title
-#			q.preview_link=preview_link
-#			q.ID=key
-#			q.count=copies
-#			q.save()
-#		books= Books.objects.all()
-#		return render(request, 'googlebooks/inventory', {'books': books})
-
-# This next is from catalog and I'm not using it. Looks like a good template for searches however
-#class LoanedBooksByUserListView(LoginRequiredMixin, generic.ListView):
-#    """Generic class-based view listing books on loan to current user."""
-#    model = BookInstance
-#    template_name = 'catalog/bookinstance_list_borrowed_user.html'
-#    paginate_by = 10
-
-#   def get_queryset(self):
-#        return BookInstance.objects.filter(borrower=self.request.user).filter(status__exact='o').order_by('due_back')
 
