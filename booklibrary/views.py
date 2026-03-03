@@ -1,5 +1,5 @@
 from django.db.models import Q # from polls
-from django.http import HttpResponse, Http404, HttpResponseNotFound # originally from polls app - not used?
+from django.http import HttpResponse, Http404, HttpResponseNotFound
 from django.shortcuts import render, redirect # render from polls
 from django.urls import reverse_lazy # reverse from polls and catalog, reverse_lazy from catalog
 from booklibrary.models import Book, Author, BookInstance, Genre, Language, Keywords, Location, Series # modified from catalog
@@ -18,7 +18,7 @@ from django.contrib import messages # added to allow passing messages
 from django.views.generic import TemplateView
 from django.template.response import TemplateResponse
 from django.utils.decorators import method_decorator
-from ratelimit.decorators import ratelimit
+from django_ratelimit.decorators import ratelimit
 #from django.views.generic.list import ListView
 from .forms import SearchForm, AddForm
 from .utils.pagination import paginate_queryset
