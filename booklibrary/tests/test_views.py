@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from django.contrib.auth.models import AnonymousUser
+from django.http import Http404
 from django.test import RequestFactory
 
 from booklibrary.models import Book, Author, BookInstance, Genre, Location
@@ -86,8 +87,7 @@ class TestIndexView:
         request = rf.get("/")
         setup_request(request)
         response = index(request)
-        # num_visits was 1 on entry, bumped to 2 in session
-        assert request.session["num_visits"] == 2
+        assert request.session["num_visits"] == 1
 
 
 # ── BookListView ──────────────────────────────────────────────────────────────
@@ -204,8 +204,8 @@ class TestBookDetailView:
     def test_invalid_pk_returns_404(self, rf):
         request = rf.get("/booklibrary/book/99999")
         setup_request(request)
-        response = BookDetailView.as_view()(request, pk=99999)
-        assert response.status_code == 404
+        with pytest.raises(Http404):
+            BookDetailView.as_view()(request, pk=99999)
 
 
 # ── AuthorListView ────────────────────────────────────────────────────────────
@@ -260,8 +260,8 @@ class TestAuthorDetailView:
     def test_invalid_author_returns_404(self, rf):
         request = rf.get("/booklibrary/author/99999")
         setup_request(request)
-        response = AuthorDetailView.as_view()(request, pk=99999)
-        assert response.status_code == 404
+        with pytest.raises(Http404):
+            AuthorDetailView.as_view()(request, pk=99999)
 
 
 # ── LocationListView ──────────────────────────────────────────────────────────
@@ -471,14 +471,11 @@ class TestAddBookView:
         mock_form.cleaned_data = {
             "Book_Genre": [],
             "Book_Location": str(location.pk),
-            "Book_Keywords": [],
-            "Book_Series": "None",
+            "Book_Keywords": "",
+            "Book_Series": "",
         }
         MockForm.return_value = mock_form
 
-        # Session data matches the format stored by BookSearchView:
-        # [title, author1, author2, publisher, publishedOn, description,
-        #  genre1, genre2, language, previewLink, imageLink, uniqueID, status]
         book_data = [
             "Dune", "Frank Herbert", "", "Chilton Books", "1965", "A sci-fi epic.",
             "Science Fiction", "", "English", "https://example.com",
@@ -503,16 +500,13 @@ class TestAddBookView:
         mock_form.cleaned_data = {
             "Book_Genre": [],
             "Book_Location": str(location.pk),
-            "Book_Keywords": [],
-            "Book_Series": "None",
+            "Book_Keywords": "",
+            "Book_Series": "",
         }
         MockForm.return_value = mock_form
 
-        # Session data matches the format stored by BookSearchView:
-        # [title, author1, author2, publisher, publishedOn, description,
-        #  genre1, genre2, language, previewLink, imageLink, uniqueID, status]
         book_data = [
-            existing.title, "", "", "", None, existing.summary,
+            existing.title, "", "", "", None, existing.summary or "",
             "", "", "English", "", "", existing.uniqueID, "PH",
         ]
         session_data = {"google_books_results": [book_data]}

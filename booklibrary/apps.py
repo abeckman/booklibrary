@@ -1,7 +1,11 @@
+"""
+App configuration for the booklibrary app.
+"""
+
 from django.apps import AppConfig
 
 
 class BooklibraryConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'booklibrary'
-
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "booklibrary"
+    verbose_name = "Book Library"

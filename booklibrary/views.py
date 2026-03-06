@@ -1,30 +1,59 @@
-from django.db.models import Q # from polls
-from django.http import HttpResponse, Http404, HttpResponseNotFound
-from django.shortcuts import render, redirect # render from polls
-from django.urls import reverse_lazy # reverse from polls and catalog, reverse_lazy from catalog
-from booklibrary.models import Book, Author, BookInstance, Genre, Language, Keywords, Location, Series # modified from catalog
-from booklibrary.owner import OwnerUpdateView, OwnerDeleteView # ,OwnerListView, OwnerDetailView, OwnerCreateView from dj4e
-from django.views import generic # from polls and catalog apps
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin # from catalog
-# from django.shortcuts import get_object_or_404 # from polls and catalog apps
-# from django.http import HttpResponseRedirect # from polls and catalog apps
-from datetime import datetime # from catalog app
-from django.contrib.auth.decorators import login_required #, permission_required # from catalog
-from django.views.generic.edit import CreateView, UpdateView, DeleteView # from catalog
+"""
+Views for the booklibrary app.
+
+Browse / search
+---------------
+index               Home page with aggregate counts and a per-session visit counter.
+BookListView        Paginated book catalogue with multi-field search and duplicate detection.
+BookDetailView      Single-book detail page with a paginated list of physical copies.
+BookSearchView      Google Books search form; stores results server-side and renders AddForm.
+AuthorListView      Paginated author directory with last-name search.
+AuthorDetailView    Single-author detail page.
+GenreListView       Paginated genre directory with name search.
+LocationListView    Paginated location directory with name search.
+LocationDetailView  Location detail page listing all BookInstances held there.
+
+Add / edit / delete  (login or permission required)
+----------------------------------------------------
+add_book                    Save a book chosen from Google Books results (login required).
+AuthorCreate/Update/Delete  Author CRUD.
+LocationCreate/Update/Delete Location CRUD.
+BookUpdate/Delete           Book CRUD; non-superusers restricted to books they own.
+BookInstanceUpdate/Delete   BookInstance CRUD; restricted to the instance owner.
+
+Internal helpers
+----------------
+SearchableListView      Reusable ListView base with single-field search and pagination.
+BookOwnerQuerysetMixin  Limits book querysets to the current owner (or all for superusers).
+_parse_published_date   Normalises Google Books date strings to datetime objects.
+_get_or_create_author   Deduplicates authors by normalised, accent-stripped name.
+
+Security note
+-------------
+add_book reads all book data (title, authors, etc.) from the server-side session
+(``request.session['google_books_results']``), not from submitted form fields, to
+prevent client-side tampering.  The AddForm controls only user choices: genre,
+location, keywords, and series.
+"""
+from django.db.models import Q
+from django.http import HttpResponse
+from django.shortcuts import render, redirect
+from django.urls import reverse_lazy
+from booklibrary.models import Book, Author, BookInstance, Genre, Language, Keywords, Location, Series
+from booklibrary.owner import OwnerUpdateView, OwnerDeleteView
+from django.views import generic
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from datetime import datetime
+from django.contrib.auth.decorators import login_required
+from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from nameparser import HumanName
 import unidecode
-import os
-from django.contrib import messages # added to allow passing messages
+from django.contrib import messages
 from django.views.generic import TemplateView
 from django.template.response import TemplateResponse
-from django.utils.decorators import method_decorator
-from django_ratelimit.decorators import ratelimit
-#from django.views.generic.list import ListView
 from .forms import SearchForm, AddForm
 from .utils.pagination import paginate_queryset
 import logging
-import re, requests
-from django.utils import timezone
 from django.conf import settings
 from .utils.google_books import (
     search_books,
@@ -41,548 +70,445 @@ logger = logging.getLogger(__name__)
 
 PAGE_SIZE = getattr(settings, "PAGE_SIZE", 24)
 
-def index(request):  # slightly modifed from catalog to drop available copies
-    """View function for home page of site."""
-    # Generate counts of some of the main objects
-    num_books = Book.objects.all().count()
-    num_instances = BookInstance.objects.all().count()
-    num_authors = Author.objects.count()  # The 'all()' is implied by default.
+def index(request):
+    """Home page: aggregate book/instance/author counts and a per-session visit counter."""
+    num_books = Book.objects.count()
+    num_instances = BookInstance.objects.count()
+    num_authors = Author.objects.count()
 
-    # Number of visits to this view, as counted in the session variable.
-    num_visits = request.session.get('num_visits', 1)
-    request.session['num_visits'] = num_visits+1
+    num_visits = request.session.get('num_visits', 0)
+    num_visits += 1
+    request.session['num_visits'] = num_visits
 
-    # Render the HTML template index.html with the data in the context variable.
-    return render(
-        request,
-        'index.html',
-        context={'num_books': num_books, 'num_instances': num_instances,
-                 'num_authors': num_authors, 'num_visits': num_visits},
-    )
+    return render(request, 'index.html', {
+        'num_books': num_books,
+        'num_instances': num_instances,
+        'num_authors': num_authors,
+        'num_visits': num_visits,
+    })
 
-class BookListView(generic.ListView): # from catalog
-    """Generic class-based view for a list of books."""
+class BookListView(generic.ListView):
+    """
+    Paginated catalogue of all books.
+
+    Accepts optional GET parameters:
+      search  – text to search for.
+      fields  – field to search: title (default, also searches summary), author,
+                genre, series, or keyword.
+      dups    – if present, shows only books that have more than one copy.
+    """
+
     model = Book
     template_name = "booklibrary/book_list.html"
     paginate_by = PAGE_SIZE
 
+    _FIELD_QUERIES = {
+        "title": lambda s: Q(title__icontains=s) | Q(summary__icontains=s),
+        "author": lambda s: (
+            Q(authors__last_name__icontains=s)
+            | Q(authors__first_name__icontains=s)
+            | Q(authors__full_name__icontains=s)
+        ),
+        "genre": lambda s: Q(genre__name__icontains=s),
+        "series": lambda s: Q(series__name__icontains=s),
+        "keyword": lambda s: Q(keywords__name__icontains=s),
+    }
+
     def get_queryset(self):
-        qs = Book.objects.all().select_related().order_by("title")
+        if self.request.GET.get("dups"):
+            return Book.objects.with_counts().filter(num_copies__gt=1).order_by("title")
 
-        request = self.request
-        dups = request.GET.get("dups")
-        fields = request.GET.get("fields")
-        search = request.GET.get("search")
-
-        if dups:
-            # Assumes with_counts() annotates num_copies on queryset
-            qs = Book.objects.with_counts().filter(num_copies__gt=1).order_by("title")
-            return qs
-# https://docs.djangoproject.com/en/4.0/topics/db/managers/#custom-managers
-# https://stackoverflow.com/questions/5685037/django-filter-query-based-on-custom-function
-# https://stackoverflow.com/questions/27878228/django-one-to-many-relationship-number-of-objects
-# https://stackoverflow.com/questions/7714290/django-count-specific-items-of-a-many-to-one-relationship
-
+        qs = Book.objects.select_related().order_by("title")
+        search = self.request.GET.get("search", "").strip()
         if not search:
             return qs
 
-        if not fields or fields == "title":
-            query = Q(title__icontains=search) | Q(summary__icontains=search)
-
-        elif fields == "author":
-            query = (
-                Q(authors__last_name__icontains=search)
-                | Q(authors__first_name__icontains=search)
-                | Q(authors__full_name__icontains=search)
-            )
-
-        elif fields == "genre":
-            query = Q(genre__name__icontains=search)
-
-        elif fields == "series":
-            query = Q(series__name__icontains=search)
-
-        elif fields == "keyword":
-            query = Q(keywords__name__icontains=search)
-
-        else:
-            # Unknown field: fallback to base queryset
+        field = self.request.GET.get("fields") or "title"
+        build_query = self._FIELD_QUERIES.get(field)
+        if build_query is None:
             return qs
+        return qs.filter(build_query(search)).distinct()
 
-        return qs.filter(query).distinct()
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["search"] = self.request.GET.get("search", "").strip() or None
+        ctx["fields"] = self.request.GET.get("fields", "")
+        ctx["dups"] = self.request.GET.get("dups", "")
+        return ctx
 
-# References
+class SearchableListView(generic.ListView):
+    """
+    Base ListView with optional single-field case-insensitive search and pagination.
 
-# https://docs.djangoproject.com/en/3.0/topics/db/queries/#one-to-many-relationships
+    Subclasses set ``search_field`` to control which model field is filtered
+    (default: ``"name"``).  The raw search string is exposed in context as
+    ``search`` so templates can repopulate the search input.
+    """
 
-# Note that the select_related() QuerySet method recursively prepopulates the
-# cache of all one-to-many relationships ahead of time.
+    search_field = "name"
+    paginate_by = PAGE_SIZE
 
-# sql “LIKE” equivalent in django query
-# https://stackoverflow.com/questions/18140838/sql-like-equivalent-in-django-query
+    def get_search_value(self):
+        return self.request.GET.get("search", "").strip() or None
 
-# How do I do an OR filter in a Django query?
-# https://stackoverflow.com/questions/739776/how-do-i-do-an-or-filter-in-a-django-query
+    def get_queryset(self):
+        qs = super().get_queryset().select_related().order_by(self.search_field)
+        search = self.get_search_value()
+        if search:
+            qs = qs.filter(**{f"{self.search_field}__icontains": search})
+        return qs
 
-# https://stackoverflow.com/questions/1074212/how-can-i-see-the-raw-sql-queries-django-is-running
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["search"] = self.get_search_value()
+        return ctx
 
-class GenreListView(generic.ListView): # from catalog
-    """Generic class-based list view for a list of Genre."""
+
+class GenreListView(SearchableListView):
+    """Paginated, searchable list of genres."""
+
     model = Genre
     template_name = "booklibrary/genre_list.html"
 
-    def get(self, request) :
-        strval =  request.GET.get("search", False)
-        if strval :
-            # Simple title-only search
-            # objects = Post.objects.filter(title__contains=strval).select_related().order_by('-updated_at')[:10]
 
-            # Multi-field search
-            # __icontains for case-insensitive search
-            query = Q(name__icontains=strval)
-#        query.add(Q(summary__icontains=strval), Q.OR)
-            genre_list = Genre.objects.filter(query).select_related().order_by('name')
-        else :
-            genre_list = Genre.objects.all().order_by('name')
-        test = 0
-        if test :
-                messages.add_message(request, messages.INFO, 'testing, testing')
+class BookDetailView(generic.DetailView):
+    """Single-book detail page. Adds a paginated list of physical copies to context."""
 
-        page_obj = paginate_queryset(request, genre_list, PAGE_SIZE)
-        ctx = {'page_obj' : page_obj, 'search': strval}
-        return TemplateResponse(request, self.template_name, ctx)
-
-class BookDetailView(generic.DetailView): # from catalog
-    """Generic class-based detail view for a book."""
     model = Book
 
-    def dispatch(self, request, *args, **kwargs):
-        try:
-            return super().dispatch(request, *args, **kwargs)
-        except Http404:
-            return HttpResponseNotFound()
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        instances = self.object.bookinstance_set.order_by('location')
+        ctx['page_obj'] = paginate_queryset(self.request, instances, PAGE_SIZE)
+        return ctx
 
-@method_decorator(ratelimit(key='ip', rate='20/h', method='POST', block=False), name='post')
+
 class BookSearchView(TemplateView):
-    template_name = 'booklibrary/book_search.html'
-    success_url = reverse_lazy('booklibrary:books')
+    """
+    Two-phase Google Books search.
 
-    def get(self, request):
-        search_form = SearchForm()
-        ctx = {'form': search_form}
-        return render(request, self.template_name, ctx)
+    GET  – renders an empty search form.
+    POST – submits the query to the Google Books API.  On success, results are
+           stored in ``request.session['google_books_results']`` and the results
+           template is rendered with an AddForm pre-populated from the user's
+           last-used genre.  On failure, an appropriate error message is shown
+           and the search form is re-rendered.
+    """
+
+    template_name = 'booklibrary/book_search.html'
+
+    def get_context_data(self, **kwargs):
+        kwargs.setdefault('form', SearchForm())
+        return super().get_context_data(**kwargs)
 
     def post(self, request):
-        if getattr(request, 'limited', False):
-            messages.error(request, "Too many searches. Please wait a while before trying again.")
-            return render(request, self.template_name, {'form': SearchForm()})
-        searchform = SearchForm(request.POST)
-        if not searchform.is_valid():
-            ctx = {'form': searchform}
-            return render(request, self.template_name, ctx)
-        q = searchform.cleaned_data['search']
-        books = []
-        total = 0
+        form = SearchForm(request.POST)
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(form=form))
 
-        if q:
-            try:
-                books, total = search_books(q, max_results=10)
-            except GoogleBooksQuotaError as exc:
-                messages.error(
-                    request,
-                    "Google Books is receiving too many requests right now. "
-                    "Please wait a bit and try again.",
-                )
-            except GoogleBooksAuthError:
-                messages.error(
-                    request,
-                    "Search is temporarily unavailable due to a configuration problem."
-                )
-            except GoogleBooksBadRequest:
-                messages.error(
-                    request,
-                    "That search could not be sent to Google. Try a simpler query."
-                )
-            except GoogleBooksError:
-                messages.error(
-                    request,
-                    "There was an unexpected error talking to Google Books. Please try again."
-                )
+        books, total = self._fetch_books(request, form.cleaned_data['search'])
+        if not books:
+            messages.info(request, 'Google did not return anything, try again')
+            return self.render_to_response(self.get_context_data(form=form))
 
-        if (books ==[]):
-            messages.add_message(request, messages.INFO, 'Google did not return anything, try again')
-            ctx = {'form': searchform}
-            return render(request, self.template_name, ctx)
-        else:
-            request.session['google_books_results'] = books
-            saved_genre = request.session.get('repeat_genre')
-            genre_obj = Genre.objects.filter(name=saved_genre).first() if saved_genre else None
-            genre_initial = [genre_obj.id] if genre_obj else []
-            add_form = AddForm(initial={'Book_Genre': genre_initial})
-            add_form.fields['Book_Genre'].initial = genre_initial
-            #form.fields['section'].initial = "Changes Approval"
-            ctx = {
-                    'form': add_form,
-                    'books': books,
-                    "total": total,
-            }
-            # According to the tutorial, the following should be a HttpResponseRedirect
-            # to prevent the user from backing up to the previous screen. In this case
-            # we don't touch the database so it doesn't matter.
-            return TemplateResponse(request, 'booklibrary/book_results.html', ctx)
-#https://stackoverflow.com/questions/657607/setting-the-selected-value-on-a-django-forms-choicefield
+        request.session['google_books_results'] = books
+        return TemplateResponse(request, 'booklibrary/book_results.html', {
+            'form': self._build_add_form(request),
+            'books': books,
+            'total': total,
+        })
 
-class AuthorListView(generic.ListView): # from catalog
-    """Generic class-based list view for a list of authors."""
+    def _fetch_books(self, request, query):
+        """Call Google Books API, message any errors, and return (books, total)."""
+        try:
+            return search_books(query, max_results=10)
+        except GoogleBooksQuotaError:
+            messages.error(request,
+                "Google Books is receiving too many requests right now. "
+                "Please wait a bit and try again.")
+        except GoogleBooksAuthError:
+            messages.error(request,
+                "Search is temporarily unavailable due to a configuration problem.")
+        except GoogleBooksBadRequest:
+            messages.error(request,
+                "That search could not be sent to Google. Try a simpler query.")
+        except GoogleBooksError:
+            messages.error(request,
+                "There was an unexpected error talking to Google Books. Please try again.")
+        return [], 0
+
+    def _build_add_form(self, request):
+        """Return an AddForm pre-populated with the user's last-used genre."""
+        saved_genre = request.session.get('repeat_genre')
+        genre_obj = Genre.objects.filter(name=saved_genre).first() if saved_genre else None
+        genre_initial = [genre_obj.id] if genre_obj else []
+        return AddForm(initial={'Book_Genre': genre_initial})
+
+class AuthorListView(SearchableListView):
+    """
+    Paginated author directory with last-name search.
+
+    Accepts an optional ``author_location`` GET parameter; when present it sets
+    ``request.session["location"] = True`` to signal the author detail template
+    to display location information for each author's books.
+    """
+
     model = Author
     template_name = "booklibrary/author_list.html"
+    search_field = "last_name"
 
-    def get(self, request) :
-        strval =  request.GET.get("search", False)
-        location = request.GET.get("author_location", False)
-        request.session['location'] = False
-        if strval :
-            # Simple title-only search
-            # objects = Post.objects.filter(title__contains=strval).select_related().order_by('-updated_at')[:10]
+    def get(self, request, *args, **kwargs):
+        request.session["location"] = bool(request.GET.get("author_location"))
+        return super().get(request, *args, **kwargs)
 
-            # Multi-field search
-            # __icontains for case-insensitive search
-            query = Q(last_name__icontains=strval)
-#        query.add(Q(summary__icontains=strval), Q.OR)
-            author_list = Author.objects.filter(query).select_related().order_by('last_name')
-        else :
-            author_list = Author.objects.all().order_by('last_name')
 
-        if location : # we want to signal the author detail template to add location
-            request.session['location'] = True
+class AuthorDetailView(generic.DetailView):
+    """Single-author detail page."""
 
-        page_obj = paginate_queryset(request, author_list, PAGE_SIZE)
-        ctx = {'page_obj' : page_obj, 'search': strval}
-        return TemplateResponse(request, self.template_name, ctx)
-
-class AuthorDetailView(generic.DetailView): # from catalog
-    """Generic class-based detail view for an author."""
     model = Author
 
-    def dispatch(self, request, *args, **kwargs):
-        try:
-            return super().dispatch(request, *args, **kwargs)
-        except Http404:
-            return HttpResponseNotFound()
 
-class LocationListView(generic.ListView):
-    """Generic class-based list view for a list of Location."""
+class LocationListView(SearchableListView):
+    """Paginated, searchable list of locations."""
+
     model = Location
     template_name = "booklibrary/location_list.html"
 
-    def get(self, request) :
-        strval =  request.GET.get("search", False)
-        if strval :
-            query = Q(name__icontains=strval)
-            location_list = Location.objects.filter(query).select_related().order_by('name')
-        else :
-            location_list = Location.objects.all().order_by('name')
-        page_obj = paginate_queryset(request, location_list, PAGE_SIZE)
-        return TemplateResponse(request, self.template_name, {"page_obj": page_obj})
 
 class LocationDetailView(generic.DetailView):
-    """Generic class-based list view for a list of the content of a location."""
+    """Location detail page. Adds a paginated list of BookInstances held at this location."""
+
     model = Location
     template_name = "booklibrary/location_detail.html"
 
-    def get(self, request, pk) :
-        location_id = pk
-        location = Location.objects.filter(Q(id=location_id))
-        location_list = BookInstance.objects.filter(Q(location=location_id)).order_by('book')
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        instances = BookInstance.objects.filter(location=self.object).order_by('book')
+        ctx['page_obj'] = paginate_queryset(self.request, instances, PAGE_SIZE)
+        return ctx
 
-        page_obj = paginate_queryset(request, location_list, PAGE_SIZE)
-        ctx = {'page_obj' : page_obj, 'location': location[0]}
-        return TemplateResponse(request, self.template_name, ctx)
+
+def _parse_published_date(value):
+    """Normalize a Google Books date string to a datetime, or None."""
+    if not isinstance(value, str) or not value:
+        return None
+    if value == "Not Present":
+        return datetime.now()
+    if len(value) == 4:
+        return datetime(int(value), 1, 1)
+    if len(value) == 7:
+        return datetime(int(value[:4]), int(value[5:7]), 1)
+    return value  # full date string — pass through unchanged
+
+
+def _get_or_create_author(full_name):
+    """Look up or create an Author by full name, normalising accented characters."""
+    parsed = HumanName(full_name)
+    first = unidecode.unidecode(parsed.first)
+    last = unidecode.unidecode(parsed.last)
+    author, _ = Author.objects.filter(
+        first_name__icontains=first,
+        last_name__icontains=last,
+    ).get_or_create(full_name=full_name, first_name=first, last_name=last)
+    return author
 
 
 @login_required
 def add_book(request):
-    logger.debug("add_book: received %s request", request.method)
-    # if this is a POST request we need to process the form data
-    if request.method == 'POST':
-        logger.debug("add_book: validating AddForm")
-        # create a form instance and populate it with data from the request:
-        form = AddForm(request.POST)
-        if form.is_valid():
-            try:
-                book_index = int(request.POST.get('book_index', ''))
-                book_data = request.session['google_books_results'][book_index]
-            except (ValueError, TypeError, KeyError, IndexError):
-                messages.error(request, "Invalid book selection. Please search again.")
-                return redirect('booklibrary:book-search')
-            mytitle = book_data[0]
-            myauthor1 = book_data[1]
-            myauthor2 = book_data[2]
-            mypublisher = book_data[3]
-            mypublishedOn = book_data[4]
-            if isinstance(mypublishedOn, str) and not mypublishedOn:
-                mypublishedOn = None
-            if isinstance(mypublishedOn, str) and len(mypublishedOn) == 4:
-                mypublishedOn = datetime(int(mypublishedOn[0:4]), 1, 1);
-            if isinstance(mypublishedOn, str) and len(mypublishedOn) == 7:
-                mypublishedOn = datetime(int(mypublishedOn[0:4]), int(mypublishedOn[5:7]), 1);
-            if isinstance(mypublishedOn, str) and mypublishedOn == "Not Present":
-                mypublishedOn = datetime.now();
-            mydescription = book_data[5]
-            mygenre1 = book_data[6]
-            mygenre2 = book_data[7]
-            mylanguage = book_data[8]
-            mypreviewLink = book_data[9]
-            myimageLink = book_data[10]
-            myuniqueID = book_data[11]
-            mystatus = book_data[12]
-#            myBook_Genre = Genre.objects.get(id=form.cleaned_data['Book_Genre']).name
-            myBook_Genre = form.cleaned_data['Book_Genre']
-            myBook_Location = Location.objects.get(id=form.cleaned_data['Book_Location']).name
-            myBook_Keywords = form.cleaned_data['Book_Keywords']
-            myBook_Series = form.cleaned_data['Book_Series']
-# https://stackoverflow.com/questions/657607/setting-the-selected-value-on-a-django-forms-choicefield
-            if myBook_Genre and myBook_Genre[0] != 'None':
-                #if 'repeat_genre' in request.session:
-                saved_genre = request.session.get('repeat_genre', myBook_Genre[0])
-                logger.debug("add_book: repeat_genre=%s", saved_genre)
-                form.fields['Book_Genre'].initial = myBook_Genre[0]
-                #yourFormInstance.fields['max_number'].initial = [1]
-            #else:
-            #    print("*** went into else statement ***, repeat_genre = ", request.session['repeat_genre'])
-            #    if myBook_Genre != 'None':
-            #        request.session['repeat_genre'] = myBook_Genre
-            #__getitem__(key) Example: fav_color = request.session['fav_color']
-            #__setitem__(key, value) Example: request.session['fav_color'] = 'blue'
-            #__delitem__(key) Example: del request.session['fav_color']. This raises KeyError if the given key isn’t already in the session.
-            #__contains__(key) Example: 'fav_color' in request.session
-            #num_visits = request.session.get('num_visits', 1)
-            #request.session['num_visits'] = num_visits + 1
+    """
+    Save a book chosen from Google Books search results (login required).
 
-            logger.debug(
-                "add_book: title=%r author1=%r author2=%r publisher=%r published=%r "
-                "genre1=%r genre2=%r language=%r uniqueID=%r status=%r "
-                "form_genre=%r location=%r keywords=%r series=%r",
-                mytitle, myauthor1, myauthor2, mypublisher, mypublishedOn,
-                mygenre1, mygenre2, mylanguage, myuniqueID, mystatus,
-                myBook_Genre, myBook_Location, myBook_Keywords, myBook_Series,
-            )
-# https://docs.djangoproject.com/en/3.1/topics/db/search/ for unaccent_icontains
-# https://stackoverflow.com/questions/517923/what-is-the-best-way-to-remove-accents-normalize-in-a-python-unicode-string
-# https://stackoverflow.com/questions/10366045/django-how-to-save-data-to-manytomanyfield
-# https://stackoverflow.com/questions/46314246/how-to-update-a-foreign-key-field-in-django-models-py
-# https://stackoverflow.com/questions/1194737/how-to-update-manytomany-field-in-django
+    Expects a POST containing:
+      book_index  – integer index into ``request.session['google_books_results']``.
+      AddForm fields – Book_Genre, Book_Location, Book_Keywords, Book_Series.
 
-            myBook, created = Book.objects.get_or_create(
-                    uniqueID = myuniqueID,
-                    defaults = dict(
-                        title = mytitle, summary = mydescription, publisher = mypublisher,
-                        publishedDate = mypublishedOn, previewLink = mypreviewLink,
-                        imageLink = myimageLink, contentType = "PH"))
-            if not created : # we have a duplicate book
-                messages.add_message(request, messages.INFO, 'Duplicate book')
-# Existing code deals with duplicate by adding a new instance. Probably should
-#   flag the repeat and offer to add a book instance
-            if (myauthor1 and myauthor1 != "None"):
-                myfullname1 = HumanName(myauthor1)
-                myauthorObject1, created = Author.objects.filter(
-                    Q(first_name__icontains = unidecode.unidecode(myfullname1.first)) &
-                    Q(last_name__icontains = unidecode.unidecode(myfullname1.last))
-                    ).get_or_create(
-                    full_name = myauthor1,
-                    first_name = unidecode.unidecode(myfullname1.first),
-                    last_name = unidecode.unidecode(myfullname1.last),
-                    )
-                myBook.authors.add(myauthorObject1)
-                #myfullname1 = HumanName(myauthor1)
-                #if not (Author.objects.filter(first_name__unaccent__icontains = unidecode.unidecode(myfullname1.first)) and
-                #    Author.objects.filter(last_name__unaccent__icontains=unidecode.unidecode(myfullname1.last))):
-                # Author1 first and last name match existing database record
-                #    pass
-                #else: # Author1 not in the database
-                #    q=Author(full_name=myfullname1, first_name = myfullname1.first, last_name = myfullname1.last)
-                #    q.save()
-            if (myauthor2 and myauthor2 != "None"):
-                myfullname2 = HumanName(myauthor2)
-                myauthorObject2, created = Author.objects.filter(
-                    Q(first_name__icontains = unidecode.unidecode(myfullname2.first)) &
-                    Q(last_name__icontains = unidecode.unidecode(myfullname2.last))
-                    ).get_or_create(
-                    full_name = myauthor2,
-                    first_name = unidecode.unidecode(myfullname2.first),
-                    last_name = unidecode.unidecode(myfullname2.last),
-                    )
-                myBook.authors.add(myauthorObject2)
-                #myfullname2 = HumanName(myauthor2)
-                #if not (Author.objects.filter(first_name__unaccent__icontains = unidecode.unidecode(myfullname2.first)) and
-                #    Author.objects.filter(last_name__unaccent__icontains = unidecode.unidecode(myfullname2.last))):
-                # Author2 first and last name dont match existing database record
-                #    q=Author(full_name=myfullname2, first_name = myfullname2.first, last_name = myfullname2.last)
-                #    q.save()
+    Book data (title, authors, genres, etc.) is read from the server-side session,
+    not from submitted form fields, to prevent client-side tampering.  The form
+    controls only the user's local choices (location, extra genres, keywords, series).
 
-            if (mygenre1 and mygenre1 != "None"):
-                mygenreObject1, created = Genre.objects.filter(
-                    Q(name = mygenre1)).get_or_create(name = mygenre1)
-                myBook.genre.add(mygenreObject1)
-            if (mygenre2 and mygenre2 != "None"):
-                mygenreObject2, created = Genre.objects.filter(
-                    Q(name = mygenre2)).get_or_create(name = mygenre2)
-                myBook.genre.add(mygenreObject2)
-            if myBook_Genre:    # not required and "None" not wanted
-                for genre_id in myBook_Genre:
-                    genre = Genre.objects.get(id=genre_id).name
-                    if (genre and genre != "None"):
-                        mygenreObject3, created = Genre.objects.filter(
-                            Q(name = genre)).get_or_create(name = genre)
-                        myBook.genre.add(mygenreObject3)
-            if (mylanguage and mylanguage != "None"):
-                mylanguageObject, created = Language.objects.filter(
-                    Q(name = mylanguage)).get_or_create(name = mylanguage)
-                # The following gets "Cannot assign "3": "Book.language" must be a "Language" instance."
-                #myBook.language = mylanguageObject.id
-                myBook.language = mylanguageObject
-                # The following gets "'NoneType' object has no attribute 'add'"
-                #myBook.language.add(mylanguageObject)
-            if myBook_Series: # series is required and "None" ok
-                mySeriesObject, created = Series.objects.filter(
-                    Q(name = myBook_Series)).get_or_create(name = myBook_Series)
-                myBook.series = mySeriesObject
-            for keyword_id in myBook_Keywords:  # keyword required and "None" ok
-                keyword = Keywords.objects.get(id=keyword_id).name
-                if keyword:
-                    mykeywordObject, created = Keywords.objects.filter(
-                        Q(name = keyword)).get_or_create(name = keyword)
-                    myBook.keywords.add(mykeywordObject)
-            myBook.save()
+    On success, creates a Book (or finds the existing one by uniqueID), attaches
+    related objects, creates a BookInstance owned by the current user, and redirects
+    to the book detail page.
+    """
+    if request.method != 'POST':
+        return render(request, 'booklibrary/book_search.html', {'form': AddForm()})
 
-            try:
-                myLocationObject = Location.objects.get(name__contains = myBook_Location)
-            except Location.DoesNotExist:
-                messages.error(request, "The selected location no longer exists. Please choose another.")
-                return render(request, 'booklibrary/book_results.html', {'form': form})
-            except Location.MultipleObjectsReturned:
-                messages.error(request, "The location name is ambiguous. Please contact an administrator.")
-                return render(request, 'booklibrary/book_results.html', {'form': form})
-            myBookInstance = BookInstance.objects.create(owner=request.user, book=myBook, location=myLocationObject)
-            myBookInstance.save()
-#e = myBook.update_or_create(language = mylanguageObject)
-# Update only works on querysets -
-# https://stackoverflow.com/questions/15304378/django-error-model-object-has-no-attribute-update/39934249
+    form = AddForm(request.POST)
+    if not form.is_valid():
+        logger.warning("add_book: form invalid: %s", form.errors)
+        return render(request, 'booklibrary/book_results.html', {'form': form})
 
-#            books=Book.objects.all()
-#            return redirect('/booklibrary/books/', {'books':books})
-            return redirect('booklibrary:book-detail', pk=myBook.pk)
-        else:
-            logger.warning("add_book: form invalid: %s", form.errors)
-            return render(request, 'booklibrary/book_results.html', {'form': form})
-    # if a GET (or any other method) we'll create a blank form
-    else:
-        form = AddForm()
-    return render(request, 'booklibrary/book_search.html', {'form': form})
+    cd = form.cleaned_data
 
-class AuthorCreate(LoginRequiredMixin, CreateView): # from catalog
+    try:
+        book_index = int(request.POST.get('book_index', ''))
+        book_data = request.session['google_books_results'][book_index]
+    except (ValueError, TypeError, KeyError, IndexError):
+        messages.error(request, "Invalid book selection. Please search again.")
+        return redirect('booklibrary:book-search')
+
+    try:
+        location = Location.objects.get(pk=cd['Book_Location'])
+    except Location.DoesNotExist:
+        messages.error(request, "The selected location no longer exists. Please choose another.")
+        return render(request, 'booklibrary/book_results.html', {'form': form})
+
+    (
+        title, author1, author2, publisher, published_on,
+        description, genre1, genre2, language,
+        preview_link, image_link, unique_id, status,
+    ) = book_data
+
+    published_on = _parse_published_date(published_on)
+
+    logger.debug(
+        "add_book: title=%r author1=%r author2=%r publisher=%r published=%r "
+        "genre1=%r genre2=%r language=%r uniqueID=%r status=%r "
+        "form_genre=%r location=%r keywords=%r series=%r",
+        title, author1, author2, publisher, published_on,
+        genre1, genre2, language, unique_id, status,
+        cd['Book_Genre'], location, cd['Book_Keywords'], cd['Book_Series'],
+    )
+
+    book, created = Book.objects.get_or_create(
+        uniqueID=unique_id,
+        defaults=dict(
+            title=title, summary=description, publisher=publisher,
+            publishedDate=published_on, previewLink=preview_link,
+            imageLink=image_link, contentType="PH",
+        ),
+    )
+    if not created:
+        messages.info(request, 'Duplicate book')
+
+    for name in [author1, author2]:
+        if name and name != "None":
+            book.authors.add(_get_or_create_author(name))
+
+    for genre_name in [genre1, genre2]:
+        if genre_name and genre_name != "None":
+            genre_obj, _ = Genre.objects.get_or_create(name=genre_name)
+            book.genre.add(genre_obj)
+
+    if cd['Book_Genre']:
+        book.genre.add(*Genre.objects.filter(pk__in=cd['Book_Genre']))
+        first_genre = Genre.objects.filter(pk=cd['Book_Genre'][0]).first()
+        if first_genre:
+            request.session['repeat_genre'] = first_genre.name
+
+    if language and language != "None":
+        lang_obj, _ = Language.objects.get_or_create(name=language)
+        book.language = lang_obj
+
+    if cd['Book_Series']:
+        book.series = Series.objects.filter(pk=cd['Book_Series']).first()
+
+    if cd['Book_Keywords']:
+        keyword = Keywords.objects.filter(pk=cd['Book_Keywords']).first()
+        if keyword:
+            book.keywords.add(keyword)
+
+    book.save()
+
+    BookInstance.objects.create(owner=request.user, book=book, location=location)
+    return redirect('booklibrary:book-detail', pk=book.pk)
+
+
+class AuthorCreate(LoginRequiredMixin, CreateView):
+    """Create a new author (login required)."""
+
     model = Author
     fields = ['first_name', 'last_name', 'date_of_birth', 'date_of_death']
     initial = {'date_of_death': '11/06/2020'}
 
-class AuthorUpdate(PermissionRequiredMixin, UpdateView): # from catalog
+
+class AuthorUpdate(PermissionRequiredMixin, UpdateView):
+    """Update an existing author (permission required)."""
+
     model = Author
     fields = ['full_name', 'first_name', 'last_name', 'date_of_birth', 'date_of_death']
     permission_required = 'booklibrary.author.can_change_author'
 
-class AuthorDelete(PermissionRequiredMixin, DeleteView): # from catalog
+
+class AuthorDelete(PermissionRequiredMixin, DeleteView):
+    """Delete an author (permission required)."""
+
     model = Author
     success_url = reverse_lazy('booklibrary:authors')
     permission_required = 'booklibrary.author.can_delete_author'
 
+
 class LocationCreate(LoginRequiredMixin, CreateView):
+    """Create a new location (login required)."""
+
     model = Location
     fields = ['name']
 
+
 class LocationUpdate(PermissionRequiredMixin, UpdateView):
+    """Update a location name (permission required)."""
+
     model = Location
     fields = ['name']
     permission_required = 'booklibrary.location.can_change_location'
 
+
 class LocationDelete(PermissionRequiredMixin, DeleteView):
+    """Delete a location (permission required)."""
+
     model = Location
     success_url = reverse_lazy('booklibrary:locations')
     permission_required = 'booklibrary.location.can_delete_location'
 
-class BookCreate(LoginRequiredMixin, TemplateView): # almost nothing left from catalog
-	def get(self, request):
-		addform = AddForm
-		return render(request, 'booklibrary/book_create.html', {'form':addform})
 
-	def post(self, request):
-		addform= AddForm(request.POST)
-		if addform.is_valid():
-			url=addform.cleaned_data['url']
-			key=re.findall("id=.+?[&]", url)
-			if not key:
-				messages.error(request, "Could not find a book ID in that URL. Please paste a valid Google Books URL.")
-				return render(request, 'booklibrary/book_create.html', {'form': addform})
-			temp_key=key[0][3:-1]
-			googleapikey=os.environ.get('API_KEY')
-			if not googleapikey:
-				messages.error(request, "Book lookup is unavailable due to a configuration problem.")
-				return render(request, 'booklibrary/book_create.html', {'form': addform})
-			book_url="https://www.googleapis.com/books/v1/volumes/{}".format(temp_key)
-			r = requests.get(url=book_url, params={'key':googleapikey})
-			my_json= r.json()
-			p_link="https://books.google.co.in/books?id={}".format(temp_key)
-			q=Book(book_name=my_json['volumeInfo']['title'], ID=temp_key, preview_link='p_link', created_at= timezone.now())
-			q.save()
-			books=Book.objects.all()
-# Should be a redirect?
-			return render(request, 'booklibrary/book_list.html', {'books':books})
-		return render(request, 'booklibrary/book_create.html', {'form': addform})
+class BookOwnerQuerysetMixin:
+    """
+    Mixin that restricts the book queryset to books owned by the current user.
 
-class BookUpdate(PermissionRequiredMixin, UpdateView): # from catalog
+    Superusers bypass the restriction and see all books.  Applied to BookUpdate
+    and BookDelete so non-superusers cannot edit or delete books they do not own.
+    """
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.request.user.is_superuser:
+            return qs
+        return qs.filter(bookinstance__owner=self.request.user).distinct()
+
+
+class BookUpdate(BookOwnerQuerysetMixin, PermissionRequiredMixin, UpdateView):
+    """Update book metadata. Non-superusers may only edit books they own."""
+
     model = Book
     fields = ['title', 'authors', 'summary', 'genre', 'language', 'publisher', 'publishedDate', 'keywords', 'series']
     permission_required = 'booklibrary.change_book'
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        if self.request.user.is_superuser:
-            return qs
-        return qs.filter(bookinstance__owner=self.request.user).distinct()
 
-    def dispatch(self, request, *args, **kwargs):
-        try:
-            return super().dispatch(request, *args, **kwargs)
-        except Http404:
-            return HttpResponseNotFound()
+class BookDelete(BookOwnerQuerysetMixin, PermissionRequiredMixin, DeleteView):
+    """Delete a book. Non-superusers may only delete books they own."""
 
-class BookDelete(PermissionRequiredMixin, DeleteView): # from catalog
     model = Book
     success_url = reverse_lazy('booklibrary:books')
     permission_required = 'booklibrary.delete_book'
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        if self.request.user.is_superuser:
-            return qs
-        return qs.filter(bookinstance__owner=self.request.user).distinct()
-
-    def dispatch(self, request, *args, **kwargs):
-        try:
-            return super().dispatch(request, *args, **kwargs)
-        except Http404:
-            return HttpResponseNotFound()
 
 class BookInstanceUpdate(OwnerUpdateView):
+    """Update the location of a physical copy (owner only)."""
+
     model = BookInstance
     success_url = reverse_lazy('booklibrary:books')
     fields = ['location']
 
 
 class BookInstanceDelete(OwnerDeleteView):
+    """Delete a physical copy (owner only)."""
+
     model = BookInstance
     success_url = reverse_lazy('booklibrary:books')
 
+
 def get_ip(request):
-  return HttpResponse(request.META['REMOTE_ADDR'])
+    """Return the client's IP address as a plain-text response (diagnostic utility)."""
+    return HttpResponse(request.META['REMOTE_ADDR'])
 
 

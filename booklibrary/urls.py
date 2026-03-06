@@ -6,8 +6,6 @@ from django.contrib.sitemaps.views import sitemap # from Django 4 by Example
 from django.contrib import sitemaps
 from .sitemaps import BookSitemap
 
-app_name = "booklibrary"
-
 sitemaps_dict = {
     'books': BookSitemap,
 }
@@ -57,7 +55,6 @@ urlpatterns += [
 # Add URLConf to create, update, and delete books
 urlpatterns += [
     path('book/add/', views.add_book, name='book-add'),
-    path('book/create/', views.BookCreate.as_view(), name='book-create'), # from catalog app
     path('book/<int:pk>/update/', views.BookUpdate.as_view(), name='book-update'), # from catalog app
     path('book/<int:pk>/delete/', views.BookDelete.as_view(), name='book-delete'), # from catalog app
 ]

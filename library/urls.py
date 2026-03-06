@@ -1,15 +1,26 @@
-import os
-from django.contrib import admin
-from django.urls import include, path
-from django.views.static import serve
+"""
+Project-level URL configuration for the booklibrary project.
+
+Routes:
+  /admin/          Django admin
+  /accounts/       Auth views (login, logout, password reset, …)
+  /booklibrary/    Main app (namespace: booklibrary)
+  /site/<path>     Static HTML site browser
+  /favicon.ico     Favicon
+  /__debug__/      Django Debug Toolbar (DEBUG only)
+"""
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
 from django.contrib.auth import views as auth_views
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from django.urls import include, path
+from django.views.static import serve
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # Explicit login entry so reverse('login') resolves without a namespace.
+    # Must precede the auth include to take precedence.
     path('accounts/login/', auth_views.LoginView.as_view(), name='login'),
     path('accounts/', include('django.contrib.auth.urls')),
 
@@ -17,12 +28,12 @@ urlpatterns = [
 
     # Static HTML site browser
     path('site/<path:path>', serve,
-         {'document_root': os.path.join(BASE_DIR, 'site'), 'show_indexes': False},
+         {'document_root': settings.BASE_DIR / 'site', 'show_indexes': False},
          name='site_path'),
 
     path('favicon.ico', serve, {
         'path': 'favicon.ico',
-        'document_root': os.path.join(BASE_DIR, 'booklibrary/static'),
+        'document_root': settings.BASE_DIR / 'booklibrary' / 'static',
     }),
 ]
 
