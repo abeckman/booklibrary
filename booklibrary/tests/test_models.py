@@ -262,7 +262,7 @@ class TestAuthor:
 
     def test_str_with_none_last_name(self):
         author = AuthorFactory(first_name="Cher", last_name=None)
-        assert str(author) == "None, Cher"
+        assert str(author) == "Cher"
 
     def test_get_absolute_url(self):
         author = AuthorFactory()
