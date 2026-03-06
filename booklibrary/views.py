@@ -242,7 +242,7 @@ class BookSearchView(TemplateView):
         saved_genre = request.session.get('repeat_genre')
         genre_obj = Genre.objects.filter(name=saved_genre).first() if saved_genre else None
         genre_initial = [genre_obj.id] if genre_obj else []
-        return AddForm(initial={'Book_Genre': genre_initial})
+        return AddForm(initial={'book_genre': genre_initial})
 
 class AuthorListView(SearchableListView):
     """
@@ -347,11 +347,7 @@ def add_book(request):
         messages.error(request, "Invalid book selection. Please search again.")
         return redirect('booklibrary:book-search')
 
-    try:
-        location = Location.objects.get(pk=cd['Book_Location'])
-    except Location.DoesNotExist:
-        messages.error(request, "The selected location no longer exists. Please choose another.")
-        return render(request, 'booklibrary/book_results.html', {'form': form})
+    location = cd['book_location']
 
     (
         title, author1, author2, publisher, published_on,
@@ -367,7 +363,7 @@ def add_book(request):
         "form_genre=%r location=%r keywords=%r series=%r",
         title, author1, author2, publisher, published_on,
         genre1, genre2, language, unique_id, status,
-        cd['Book_Genre'], location, cd['Book_Keywords'], cd['Book_Series'],
+        cd['book_genre'], location, cd['book_keywords'], cd['book_series'],
     )
 
     book, created = Book.objects.get_or_create(
@@ -390,9 +386,9 @@ def add_book(request):
             genre_obj, _ = Genre.objects.get_or_create(name=genre_name)
             book.genre.add(genre_obj)
 
-    if cd['Book_Genre']:
-        book.genre.add(*Genre.objects.filter(pk__in=cd['Book_Genre']))
-        first_genre = Genre.objects.filter(pk=cd['Book_Genre'][0]).first()
+    if cd['book_genre']:
+        book.genre.add(*cd['book_genre'])
+        first_genre = cd['book_genre'].first()
         if first_genre:
             request.session['repeat_genre'] = first_genre.name
 
@@ -400,13 +396,11 @@ def add_book(request):
         lang_obj, _ = Language.objects.get_or_create(name=language)
         book.language = lang_obj
 
-    if cd['Book_Series']:
-        book.series = Series.objects.filter(pk=cd['Book_Series']).first()
+    if cd['book_series']:
+        book.series = cd['book_series']
 
-    if cd['Book_Keywords']:
-        keyword = Keywords.objects.filter(pk=cd['Book_Keywords']).first()
-        if keyword:
-            book.keywords.add(keyword)
+    if cd['book_keywords']:
+        book.keywords.add(cd['book_keywords'])
 
     book.save()
 

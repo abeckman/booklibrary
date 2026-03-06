@@ -1,58 +1,89 @@
-from django import forms # from catalog
-from booklibrary.models import Genre, Location, Series, Keywords
+from django import forms
+from booklibrary.models import Genre, Keywords, Location, Series
 
-# None of this is from catalog except a few imports
 
 class SearchForm(forms.Form):
-	search = forms.CharField(widget=forms.TextInput(
-		attrs={
-			'class': 'form-control',
-			'placeholder': 'search for a book'
-		}
-	))
+    search = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'search for a book',
+        })
+    )
 
-# Look at putting first location selected into session variable. Same for the genre
-# Offer selection or entry for location with session value or default
-# Offer option of new genre
 
 class AddForm(forms.Form):
-# MultipleChoiceField allows for multiple choice, but shows four of the choices initially.
-    Book_Genre = forms.MultipleChoiceField(choices=[], required=False)
-    Book_Location = forms.ChoiceField(choices=[], required=False)
-    Book_Series = forms.ChoiceField(choices=[], required=False)
-    Book_Keywords = forms.ChoiceField(choices=[], required=False,
-        help_text="Keywords (up to 3)")
-# https://www.geeksforgeeks.org/choicefield-django-forms/
-# https://stackoverflow.com/questions/31035112/django-init-got-an-unexpected-keyword-argument-choices
-# https://stackoverflow.com/questions/34781524/django-populate-a-form-choicefield-field-from-a-queryset-and-relate-the-choice-b
-    title = forms.CharField(widget = forms.HiddenInput(), required=True, max_length=200, min_length=2, strip = False)
-    author1 = forms.CharField(widget = forms.HiddenInput(), required=True, max_length=50, strip = False)
-    author2 = forms.CharField(widget = forms.HiddenInput(), required=False, max_length=50, strip = False)
-    publisher = forms.CharField(widget = forms.HiddenInput(), required=False, max_length=250, strip = False)
-    publishedOn = forms.CharField(widget = forms.HiddenInput(), required=False, max_length=250, strip = False)
-    description = forms.CharField(widget = forms.HiddenInput(), required=False, max_length=4000, strip = False)
-    genre1 = forms.CharField(widget = forms.HiddenInput(), required=True, max_length=200)
-    genre2 = forms.CharField(widget = forms.HiddenInput(), required=False, max_length=200)
-    language = forms.CharField(widget = forms.HiddenInput(), required=True, max_length=200)
-    previewLink = forms.CharField(widget = forms.HiddenInput(), required=False, max_length=250)
-    imageLink = forms.CharField(widget = forms.HiddenInput(), required=False, max_length=250)
-    uniqueID = forms.CharField(widget = forms.HiddenInput(), required=True, max_length=200)
-    status = forms.CharField(widget = forms.HiddenInput(), required=True, max_length = 50, strip = False)
+    """
+    User-supplied choices when adding a book from Google Books search results.
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        genres = [(c.pk, c.name) for c in Genre.objects.all()]
-        self.fields['Book_Genre'].choices = genres
+    The four choice fields (book_genre, book_location, book_series,
+    book_keywords) capture the user's local shelving preferences.
 
-        locations = [(c.pk, c.name) for c in Location.objects.all()]
-        self.fields['Book_Location'].choices = locations
+    The hidden fields carry book metadata submitted by the template and are
+    validated server-side, but the actual data used to create the Book record
+    is read from the session (not from cleaned_data) to prevent tampering.
+    """
 
-        series = [(c.pk, c.name) for c in Series.objects.all()]
-        self.fields['Book_Series'].choices = series
-        if series:
-            self.fields['Book_Series'].initial = series[0]
+    # ── User-supplied choice fields ────────────────────────────────────────────
 
-        keywords = [(c.pk, c.name) for c in Keywords.objects.all()]
-        self.fields['Book_Keywords'].choices = keywords
-        if keywords:
-            self.fields['Book_Keywords'].initial = keywords[0]
+    book_genre = forms.ModelMultipleChoiceField(
+        queryset=Genre.objects.all(),
+        required=False,
+    )
+    book_location = forms.ModelChoiceField(
+        queryset=Location.objects.all(),
+        required=False,
+        empty_label='— select location —',
+    )
+    book_series = forms.ModelChoiceField(
+        queryset=Series.objects.all(),
+        required=False,
+        empty_label='— select series —',
+    )
+    book_keywords = forms.ModelChoiceField(
+        queryset=Keywords.objects.all(),
+        required=False,
+        empty_label='— select keyword —',
+        help_text='Keywords (up to 3)',
+    )
+
+    # ── Hidden book-metadata fields (validated; values read from session) ──────
+
+    title = forms.CharField(
+        widget=forms.HiddenInput(), max_length=200, min_length=2, strip=False,
+    )
+    author1 = forms.CharField(
+        widget=forms.HiddenInput(), max_length=50, strip=False,
+    )
+    author2 = forms.CharField(
+        widget=forms.HiddenInput(), required=False, max_length=50, strip=False,
+    )
+    publisher = forms.CharField(
+        widget=forms.HiddenInput(), required=False, max_length=250, strip=False,
+    )
+    publishedOn = forms.CharField(
+        widget=forms.HiddenInput(), required=False, max_length=250, strip=False,
+    )
+    description = forms.CharField(
+        widget=forms.HiddenInput(), required=False, max_length=4000, strip=False,
+    )
+    genre1 = forms.CharField(
+        widget=forms.HiddenInput(), max_length=200,
+    )
+    genre2 = forms.CharField(
+        widget=forms.HiddenInput(), required=False, max_length=200,
+    )
+    language = forms.CharField(
+        widget=forms.HiddenInput(), max_length=200,
+    )
+    previewLink = forms.CharField(
+        widget=forms.HiddenInput(), required=False, max_length=250,
+    )
+    imageLink = forms.CharField(
+        widget=forms.HiddenInput(), required=False, max_length=250,
+    )
+    uniqueID = forms.CharField(
+        widget=forms.HiddenInput(), max_length=200,
+    )
+    status = forms.CharField(
+        widget=forms.HiddenInput(), max_length=50, strip=False,
+    )

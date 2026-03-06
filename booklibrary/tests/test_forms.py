@@ -1,12 +1,13 @@
 """
 Form tests for SearchForm and AddForm.
 
-AddForm populates its Genre/Location/Series/Keywords choices lazily inside
-__init__, so choices reflect the database state at the time each form
-instance is created.  Tests that don't seed those models will see empty
-choice lists; tests that do seed them will see real choices.
+AddForm uses ModelMultipleChoiceField / ModelChoiceField for its four
+user-facing choice fields, so those fields reflect live DB state.
+Tests that don't seed the related models will see empty querysets (all
+optional fields, so forms can still be valid).
 """
 import pytest
+from django import forms as django_forms
 from booklibrary.forms import SearchForm, AddForm
 
 
@@ -21,10 +22,8 @@ class TestSearchForm:
         assert form.cleaned_data["search"] == "Dune"
 
     def test_valid_with_whitespace_only(self):
-        # CharField strips by default; whitespace-only is non-empty before strip
+        # CharField strips by default; whitespace-only collapses to "" → invalid
         form = SearchForm(data={"search": "   "})
-        # Django strips leading/trailing whitespace, leaving ""
-        # CharField with strip=True (default) will make this empty → invalid
         assert not form.is_valid()
 
     def test_invalid_when_search_missing(self):
@@ -38,18 +37,15 @@ class TestSearchForm:
         assert "search" in form.errors
 
     def test_search_widget_has_placeholder(self):
-        form = SearchForm()
-        widget_attrs = form.fields["search"].widget.attrs
+        widget_attrs = SearchForm().fields["search"].widget.attrs
         assert widget_attrs.get("placeholder") == "search for a book"
 
     def test_search_widget_has_form_control_class(self):
-        form = SearchForm()
-        widget_attrs = form.fields["search"].widget.attrs
+        widget_attrs = SearchForm().fields["search"].widget.attrs
         assert "form-control" in widget_attrs.get("class", "")
 
     def test_long_search_term_is_valid(self):
         form = SearchForm(data={"search": "a" * 500})
-        # CharField has no max_length by default
         assert form.is_valid()
 
 
@@ -58,8 +54,8 @@ class TestSearchForm:
 @pytest.mark.django_db
 class TestAddFormStructure:
     """
-    Tests that verify AddForm field presence, required flags, and behavior
-    when no Genre/Location/Series/Keywords rows exist in the DB (empty choices).
+    Verify AddForm field presence, required flags, and field types when no
+    Genre/Location/Series/Keywords rows exist in the DB (empty querysets).
     """
 
     def test_required_hidden_fields_present(self):
@@ -92,21 +88,30 @@ class TestAddFormStructure:
     def test_description_max_length(self):
         assert AddForm().fields["description"].max_length == 4000
 
-    def test_book_genre_is_multiple_choice(self):
-        from django import forms
-        assert isinstance(AddForm().fields["Book_Genre"], forms.MultipleChoiceField)
+    def test_book_genre_is_model_multiple_choice(self):
+        assert isinstance(AddForm().fields["book_genre"], django_forms.ModelMultipleChoiceField)
 
-    def test_book_location_is_choice_field(self):
-        from django import forms
-        assert isinstance(AddForm().fields["Book_Location"], forms.ChoiceField)
+    def test_book_location_is_model_choice(self):
+        assert isinstance(AddForm().fields["book_location"], django_forms.ModelChoiceField)
+
+    def test_book_series_is_model_choice(self):
+        assert isinstance(AddForm().fields["book_series"], django_forms.ModelChoiceField)
+
+    def test_book_keywords_is_model_choice(self):
+        assert isinstance(AddForm().fields["book_keywords"], django_forms.ModelChoiceField)
 
     def test_book_keywords_help_text(self):
-        assert "Keywords" in AddForm().fields["Book_Keywords"].help_text
+        assert "Keywords" in AddForm().fields["book_keywords"].help_text
+
+    def test_choice_fields_are_optional(self):
+        form = AddForm()
+        for field_name in ("book_genre", "book_location", "book_series", "book_keywords"):
+            assert not form.fields[field_name].required, f"{field_name} should be optional"
 
     def test_form_valid_with_required_hidden_fields_only(self):
         """
-        When no DB rows exist, choices are empty and optional choice fields
-        accept '' — form is valid when all required hidden fields are supplied.
+        When no DB rows exist, choice fields are empty querysets; the form is
+        valid as long as all required hidden fields are supplied.
         """
         data = {
             "title": "My Book",
@@ -115,7 +120,7 @@ class TestAddFormStructure:
             "language": "English",
             "uniqueID": "test-001",
             "status": "PH",
-            # optional fields omitted / empty
+            # optional fields empty
             "author2": "",
             "publisher": "",
             "publishedOn": "",
@@ -123,10 +128,10 @@ class TestAddFormStructure:
             "genre2": "",
             "previewLink": "",
             "imageLink": "",
-            "Book_Genre": [],
-            "Book_Location": "",
-            "Book_Keywords": "",
-            "Book_Series": "",
+            "book_genre": [],
+            "book_location": "",
+            "book_keywords": "",
+            "book_series": "",
         }
         form = AddForm(data=data)
         assert form.is_valid(), form.errors
@@ -144,7 +149,6 @@ class TestAddFormStructure:
         assert "title" in form.errors
 
     def test_form_invalid_with_short_title(self):
-        """min_length=2 means a single character is rejected."""
         data = {
             "title": "A",
             "author1": "Jane Doe",

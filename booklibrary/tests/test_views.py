@@ -469,10 +469,10 @@ class TestAddBookView:
         mock_form = MagicMock()
         mock_form.is_valid.return_value = True
         mock_form.cleaned_data = {
-            "Book_Genre": [],
-            "Book_Location": str(location.pk),
-            "Book_Keywords": "",
-            "Book_Series": "",
+            "book_genre": Genre.objects.none(),
+            "book_location": location,
+            "book_keywords": None,
+            "book_series": None,
         }
         MockForm.return_value = mock_form
 
@@ -498,10 +498,10 @@ class TestAddBookView:
         mock_form = MagicMock()
         mock_form.is_valid.return_value = True
         mock_form.cleaned_data = {
-            "Book_Genre": [],
-            "Book_Location": str(location.pk),
-            "Book_Keywords": "",
-            "Book_Series": "",
+            "book_genre": Genre.objects.none(),
+            "book_location": location,
+            "book_keywords": None,
+            "book_series": None,
         }
         MockForm.return_value = mock_form
 
