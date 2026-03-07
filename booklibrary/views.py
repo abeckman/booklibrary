@@ -52,7 +52,7 @@ from django.contrib import messages
 from django.views.generic import TemplateView
 from django.template.response import TemplateResponse
 from .forms import SearchForm, AddForm
-from .utils.pagination import paginate_queryset
+from django.core.paginator import Paginator
 import logging
 from django.conf import settings
 from .utils.google_books import (
@@ -179,7 +179,7 @@ class BookDetailView(generic.DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         instances = self.object.bookinstance_set.order_by('location')
-        ctx['page_obj'] = paginate_queryset(self.request, instances, PAGE_SIZE)
+        ctx['page_obj'] = Paginator(instances, PAGE_SIZE).get_page(self.request.GET.get("page"))
         return ctx
 
 
@@ -238,11 +238,17 @@ class BookSearchView(TemplateView):
         return [], 0
 
     def _build_add_form(self, request):
-        """Return an AddForm pre-populated with the user's last-used genre."""
+        """Return an AddForm pre-populated with the user's last-used genre and location."""
         saved_genre = request.session.get('repeat_genre')
         genre_obj = Genre.objects.filter(name=saved_genre).first() if saved_genre else None
-        genre_initial = [genre_obj.id] if genre_obj else []
-        return AddForm(initial={'book_genre': genre_initial})
+
+        saved_location_pk = request.session.get('repeat_location')
+        location_obj = Location.objects.filter(pk=saved_location_pk).first() if saved_location_pk else None
+
+        return AddForm(initial={
+            'book_genre': [genre_obj.pk] if genre_obj else [],
+            'book_location': location_obj,
+        })
 
 class AuthorListView(SearchableListView):
     """
@@ -284,7 +290,7 @@ class LocationDetailView(generic.DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         instances = BookInstance.objects.filter(location=self.object).order_by('book')
-        ctx['page_obj'] = paginate_queryset(self.request, instances, PAGE_SIZE)
+        ctx['page_obj'] = Paginator(instances, PAGE_SIZE).get_page(self.request.GET.get("page"))
         return ctx
 
 
@@ -349,20 +355,27 @@ def add_book(request):
 
     location = cd['book_location']
 
-    (
-        title, author1, author2, publisher, published_on,
-        description, genre1, genre2, language,
-        preview_link, image_link, unique_id, status,
-    ) = book_data
+    title        = book_data["title"]
+    author1      = book_data["author1"]
+    author2      = book_data["author2"]
+    publisher    = book_data["publisher"]
+    published_on = book_data["published_date"]
+    description  = book_data["description"]
+    genre1       = book_data["genre1"]
+    genre2       = book_data["genre2"]
+    language     = book_data["language"]
+    preview_link = book_data["preview_link"]
+    image_link   = book_data["image_link"]
+    unique_id    = book_data["volume_id"]
 
     published_on = _parse_published_date(published_on)
 
     logger.debug(
         "add_book: title=%r author1=%r author2=%r publisher=%r published=%r "
-        "genre1=%r genre2=%r language=%r uniqueID=%r status=%r "
+        "genre1=%r genre2=%r language=%r uniqueID=%r is_owned=%r "
         "form_genre=%r location=%r keywords=%r series=%r",
         title, author1, author2, publisher, published_on,
-        genre1, genre2, language, unique_id, status,
+        genre1, genre2, language, unique_id, book_data["is_owned"],
         cd['book_genre'], location, cd['book_keywords'], cd['book_series'],
     )
 
@@ -405,6 +418,10 @@ def add_book(request):
     book.save()
 
     BookInstance.objects.create(owner=request.user, book=book, location=location)
+
+    if location:
+        request.session['repeat_location'] = location.pk
+
     return redirect('booklibrary:book-detail', pk=book.pk)
 
 

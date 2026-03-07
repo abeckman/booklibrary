@@ -8,10 +8,11 @@ message queuing, and template rendering.
 They complement the unit-level tests in test_views.py (which use
 RequestFactory and bypass routing/middleware).
 
-The message block in base_menu.html is commented out, so Django messages
-are never rendered into HTML.  All message assertions therefore call
-``get_messages(response.wsgi_request)`` on the raw request object where the
-messages remain unconsumed.
+Django's message storage caches loaded messages in ``_loaded_data`` on the
+request object for the lifetime of the request.  Even though base_menu.html
+now renders messages into HTML, iterating ``get_messages()`` on the request
+object reads from that in-memory cache, so messages remain accessible after
+rendering.
 
 External services are mocked throughout.
 
@@ -50,12 +51,13 @@ from .conftest import (
 
 def _msgs(response):
     """
-    Return all queued message strings for a response.
+    Return all message strings queued on a response.
 
-    Works for both 200 and 302 responses.  Because the base template does
-    *not* iterate the messages context variable (the block is commented out),
-    the messages storage is never consumed during template rendering and
-    remains fully readable here.
+    Works for both 200 and 302 responses.  Although the base template now
+    renders messages (via ``misc/includes/messages.html``), Django's message
+    storage caches loaded messages in ``_loaded_data`` on the request object
+    for the lifetime of the request.  Iterating ``get_messages()`` here reads
+    from that in-memory cache, so messages remain accessible after rendering.
     """
     return [str(m) for m in get_messages(response.wsgi_request)]
 
@@ -112,25 +114,25 @@ def _setup_session(client, payload):
     be called before ``client.post()`` for any test that expects the view to
     proceed past the session-lookup guard.
 
-    The list order matches the view's positional reads:
-    [title, author1, author2, publisher, publishedOn, description,
-     genre1, genre2, language, previewLink, imageLink, uniqueID, status]
+    ``payload`` is typically the dict returned by ``_add_book_payload()``.
+    The POST-style keys (``publishedOn``, ``previewLink``, etc.) are mapped
+    to the session dict keys used by ``search_books()``.
     """
-    book_data = [
-        payload.get("title", ""),
-        payload.get("author1", ""),
-        payload.get("author2", ""),
-        payload.get("publisher", ""),
-        payload.get("publishedOn", ""),
-        payload.get("description", ""),
-        payload.get("genre1", ""),
-        payload.get("genre2", ""),
-        payload.get("language", ""),
-        payload.get("previewLink", ""),
-        payload.get("imageLink", ""),
-        payload.get("uniqueID", ""),
-        payload.get("status", ""),
-    ]
+    book_data = {
+        "title":          payload.get("title", ""),
+        "author1":        payload.get("author1", ""),
+        "author2":        payload.get("author2", ""),
+        "publisher":      payload.get("publisher", ""),
+        "published_date": payload.get("publishedOn", ""),
+        "description":    payload.get("description", ""),
+        "genre1":         payload.get("genre1", ""),
+        "genre2":         payload.get("genre2", ""),
+        "language":       payload.get("language", ""),
+        "preview_link":   payload.get("previewLink", ""),
+        "image_link":     payload.get("imageLink", ""),
+        "volume_id":      payload.get("uniqueID", ""),
+        "is_owned":       False,
+    }
     session = client.session
     session["google_books_results"] = [book_data]
     session.save()
@@ -343,6 +345,39 @@ class TestBookInstanceOwnerEnforcement:
         assert response.status_code == 302
         assert not BookInstance.objects.filter(pk=bi_pk).exists()
 
+    def test_deleting_last_instance_via_view_deletes_book(self, client):
+        """
+        When the last BookInstance for a book is deleted through the HTTP
+        delete view, the parent Book is also removed from the database.
+        """
+        user = UserFactory()
+        bi = BookInstanceFactory(owner=user)
+        book_pk = bi.book.pk
+        client.force_login(user)
+
+        url = reverse("booklibrary:bookinstance-delete", kwargs={"pk": bi.pk})
+        client.post(url)
+
+        assert not Book.objects.filter(pk=book_pk).exists()
+
+    def test_deleting_one_instance_keeps_book_when_another_remains(self, client):
+        """
+        Deleting one of several instances through the view leaves the Book
+        intact as long as at least one other instance exists.
+        """
+        user = UserFactory()
+        book = BookFactory()
+        bi1 = BookInstanceFactory(book=book, owner=user)
+        bi2 = BookInstanceFactory(book=book, owner=user)
+        book_pk = book.pk
+        client.force_login(user)
+
+        url = reverse("booklibrary:bookinstance-delete", kwargs={"pk": bi1.pk})
+        client.post(url)
+
+        assert Book.objects.filter(pk=book_pk).exists()
+        assert BookInstance.objects.filter(pk=bi2.pk).exists()
+
     def test_owner_delete_redirect_target_is_book_list(self, client):
         user = UserFactory()
         bi = BookInstanceFactory(owner=user)
@@ -486,9 +521,9 @@ class TestBookSearchViewIntegration:
     Full-stack tests for ``BookSearchView``.  The Google Books API is mocked
     so tests run without network access.
 
-    Message assertions use ``_msgs(response)`` because ``base_menu.html``
-    has the messages block commented out, meaning messages are not rendered
-    into HTML and remain readable in the request's storage object.
+    Message assertions use ``_msgs(response)`` which reads from the request
+    object's in-memory message cache (``_loaded_data``), accessible even after
+    base_menu.html has rendered the messages into HTML.
     """
 
     def test_get_renders_search_form_with_200(self, client):
@@ -556,11 +591,14 @@ class TestBookSearchViewIntegration:
     @patch("booklibrary.views.search_books")
     def test_post_with_results_renders_results_template(self, mock_search, client):
         """When books are returned the view renders book_results.html."""
-        fake_books = [[
-            "Title", "Author", None, "Pub", "2020", "Desc",
-            None, None, "en", "https://p.example.com",
-            "https://img.example.com", "ID1", "not owned",
-        ]]
+        fake_books = [{
+            "title": "Title", "author1": "Author", "author2": None,
+            "publisher": "Pub", "published_date": "2020", "description": "Desc",
+            "genre1": None, "genre2": None, "language": "en",
+            "preview_link": "https://p.example.com",
+            "image_link": "https://img.example.com",
+            "volume_id": "ID1", "is_owned": False,
+        }]
         mock_search.return_value = (fake_books, 1)
         response = client.post(
             reverse("booklibrary:book-search"),

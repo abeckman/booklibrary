@@ -1,24 +1,64 @@
 {% extends "./booklibrary/base_menu.html" %}
+{% comment %}
+  index.html — Home page for the Book Library application.
+
+  Extends:  booklibrary/base_menu.html
+  View:     booklibrary.views.index
+
+  Context variables:
+    num_books     (int) – total books in the catalogue
+    num_instances (int) – total physical copies (BookInstance records)
+    num_authors   (int) – total authors
+    num_visits    (int) – how many times this browser session has visited
+{% endcomment %}
+
+{% block title %}Home — Book Library{% endblock title %}
 
 {% block content %}
-<h1>Book Library Home</h1>
 
-<p>Welcome to <em>Book Library</em>, a Django website</p>
-<p>This application catalogs my books with locations</p>
+<h1 class="mb-1">Book Library</h1>
+<p class="text-muted mb-4">A personal catalogue of books and their locations.</p>
 
+{# Catalogue summary ─────────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
 
+  <div class="col-sm-4">
+    <div class="card text-center shadow-sm h-100">
+      <div class="card-body">
+        <i class="fas fa-book fa-2x text-primary mb-2"></i>
+        <p class="display-6 fw-bold mb-0">{{ num_books }}</p>
+        <p class="card-text text-muted">Books</p>
+      </div>
+    </div>
+  </div>
 
-<h2>Dynamic content</h2>
+  <div class="col-sm-4">
+    <div class="card text-center shadow-sm h-100">
+      <div class="card-body">
+        <i class="fas fa-copy fa-2x text-success mb-2"></i>
+        <p class="display-6 fw-bold mb-0">{{ num_instances }}</p>
+        <p class="card-text text-muted">Copies</p>
+      </div>
+    </div>
+  </div>
 
-<p>The library has the following record counts:</p>
-<ul>
-<li><strong>Books:</strong> {{ num_books }}</li>
-<li><strong>Copies:</strong> {{ num_instances }}</li>
-<li><strong>Copies available:</strong> {{ num_instances_available }}</li>
-<li><strong>Authors:</strong> {{ num_authors }}</li>
-</ul>
+  <div class="col-sm-4">
+    <div class="card text-center shadow-sm h-100">
+      <div class="card-body">
+        <i class="fas fa-user fa-2x text-info mb-2"></i>
+        <p class="display-6 fw-bold mb-0">{{ num_authors }}</p>
+        <p class="card-text text-muted">Authors</p>
+      </div>
+    </div>
+  </div>
 
+</div>
 
-You have visited this page {{ num_visits }} time{% if num_visits > 1 %}s{% endif %}.
+{# Per-session visit counter ─────────────────────────────────────────────── #}
+<p class="text-muted">
+  You have visited this page
+  <strong>{{ num_visits }}</strong>
+  time{% if num_visits != 1 %}s{% endif %}.
+</p>
 
-{% endblock %}
+{% endblock content %}

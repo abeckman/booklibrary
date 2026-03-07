@@ -1,153 +1,167 @@
+{% comment %}
+  base_menu.html — Root base template for all Book Library pages.
+
+  All other templates extend this one.  Child templates may override any of
+  the following blocks:
+
+    head     – extra <head> content (additional CSS, meta tags, etc.)
+    title    – browser tab / window title; defaults to settings.APP_NAME
+    navbar   – full top navigation bar
+    welcome  – optional banner area immediately below the navbar
+    sidebar  – left-side navigation panel
+    content  – main page body (required — child templates must override this)
+    footer   – page footer
+
+  Template tags loaded here and available in this file:
+    static   – {% static '...' %} for asset URLs
+    app_tags – {{ user|gravatar:N }} for Gravatar avatar URLs
+{% endcomment %}
+{% load static app_tags %}
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Home Book Library">
-    <meta name="author" content="Art Beckman">
-<!-- From dj4e modified from bootstrap site -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Personal book catalogue">
+  <meta name="author" content="Art Beckman">
+  <title>{% block title %}{{ settings.APP_NAME }}{% endblock title %}</title>
 
-<title>{% block title %} {{ settings.APP_NAME }} {% endblock title %}</title>
+  {# Bootstrap 5 CSS #}
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+        integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+        crossorigin="anonymous">
 
-<!-- Bootstrap core CSS -->
-<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
-<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/ui-lightness/jquery-ui.css" crossorigin="anonymous">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
-<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css">
-<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/v4-shims.css">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+  {# Icon libraries #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/v4-shims.css">
 
-{% load static %}
-<link rel="stylesheet" type="text/css" href="{% static 'booklibrary/css/styles.css' %}">
+  {# jQuery UI CSS (autocomplete widget) — version kept in sync with jQuery UI JS below #}
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.1/themes/smoothness/jquery-ui.css">
 
-      <style>
-        .bd-placeholder-img {
-          font-size: 1.125rem;
-          text-anchor: middle;
-          -webkit-user-select: none;
-          -moz-user-select: none;
-          user-select: none;
-      }
+  {# App styles #}
+  <link rel="stylesheet" href="{% static 'booklibrary/css/styles.css' %}">
 
-      @media (min-width: 768px) {
-        .bd-placeholder-img-lg {
-          font-size: 3.5rem;
-        }
-      }
-      </style>
-{% block head %} {% endblock head %}
+  {% block head %}{% endblock head %}
 </head>
 
 <body>
-    <a id="top"></a>
-    <!-- humanize, fonts and security from dj4e -->
-{% block navbar %}
-{% load app_tags %}
+  <a id="top"></a>
 
-<nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
-    <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="#">Local Library</a>
-    <button class="navbar-toggler position-absolute d-md-none collapsed" type="button"
-        data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu"
-        aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
+  {% block navbar %}
+  <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+
+    <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3"
+       href="{% url 'booklibrary:index' %}">Book Library</a>
+
+    <button class="navbar-toggler position-absolute d-md-none collapsed"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#sidebarMenu"
+            aria-controls="sidebarMenu"
+            aria-expanded="false"
+            aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
     </button>
-    <!-- <input class="form-control form-control-dark w-100" type="text" placeholder="Search" aria-label="Search"> -->
+
     <ul class="nav navbar-nav navbar-right">
-    {% if user.is_authenticated %}
-        <li class="nav-item">User: {{ user.get_username }}</li>
-        <!-- gravatar depends on app_tags being loaded -->
-        <!-- https://brobin.me/blog/2016/07/super-simple-django-gravatar/ -->
-            <img style="width: 25px;" src="{{ user|gravatar:60 }}"/>
-        <li class="nav-item">
-            <form id="logout-form" method="post" action="{% url 'logout' %}?next={{request.path}}">
-                {% csrf_token %}
-                <button type="submit">Log out</button>
-            </form>
+      {% if user.is_authenticated %}
+        <li class="nav-item text-light px-2">{{ user.get_username }}</li>
+        <li class="nav-item px-1">
+          <img src="{{ user|gravatar:40 }}" alt="avatar" width="25" class="rounded-circle">
         </li>
-    {% else %}
         <li class="nav-item">
-            <form id="login-form" method="post" action="{% url 'login' %}?next={{request.path}}">
-                {% csrf_token %}
-                <button type="submit">Log in</button>
-            </form>
+          <form id="logout-form" method="post" action="{% url 'logout' %}?next={{ request.path }}">
+            {% csrf_token %}
+            <button type="submit">Log out</button>
+          </form>
         </li>
-    {% endif %}
+      {% else %}
+        <li class="nav-item">
+          <a class="nav-link text-light" href="{% url 'login' %}?next={{ request.path }}">Log in</a>
+        </li>
+      {% endif %}
     </ul>
-</nav>
-{% endblock navbar %}
 
-{% block welcome %} {% endblock welcome %}
-<!--
-{% block messages %}
-    {% if messages %}
-    <ul class="messages">
-    {% for message in messages %}
-        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-    {% endfor %}
-    </ul>
-    {% endif %}
-{% endblock messages %} -->
-<div class="container-fluid">
+  </nav>
+  {% endblock navbar %}
+
+  {% block welcome %}{% endblock welcome %}
+
+  {% include "misc/includes/messages.html" %}
+
+  <div class="container-fluid">
     <div class="row">
-{% block sidebar %}
-        <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
-            <div class="position-sticky pt-3">
-                <ul class="nav flex-column">
-                    <!--
-                    <li class="nav-item">
-                        <a class="nav-link active" aria-current="page" href="#">
-                            <span data-feather="home"></span>
-                            Home
-                        </a>
-                    </li>
-                    -->
-                    <!-- https://stackoverflow.com/questions/22047251/django-dynamically-get-view-url-and-check-if-its-the-current-page -->
-                    <!-- Assign output of url function to a variable named
-                      'xyz' to use in the if statement -->
-                    {% url 'booklibrary:index' as xyz %}
-                    <li class="nav-item" {% if request.get_full_path == xyz %}class="active"{% endif %}>
-                        <a href="{{ xyz }}">Home</a></li>
 
-                    {% url 'booklibrary:books' as abc1 %}
-                    <li class="nav-item" {% if request.get_full_path == abc1 %}class="active"{% endif %}>
-                        <a href="{{ abc1 }}">All books</a></li>
+      {% block sidebar %}
+      <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+        <div class="position-sticky pt-3">
+          <ul class="nav flex-column">
 
-                    {% url 'booklibrary:authors' as abc2 %}
-                    <li class="nav-item" {% if request.get_full_path == abc2 %}class="active"{% endif %}>
-                        <a href="{{ abc2 }}">All authors</a></li>
+            {% url 'booklibrary:index' as url_home %}
+            <li class="nav-item">
+              <a class="nav-link{% if request.path == url_home %} active{% endif %}"
+                 href="{{ url_home }}">Home</a>
+            </li>
 
-                    {% url 'booklibrary:locations' as abc3 %}
-                    <li class="nav-item" {% if request.get_full_path == abc3 %}class="active"{% endif %}>
-                        <a href="{{ abc3 }}">All locations</a></li>
+            {% url 'booklibrary:books' as url_books %}
+            <li class="nav-item">
+              <a class="nav-link{% if request.path == url_books %} active{% endif %}"
+                 href="{{ url_books }}">All books</a>
+            </li>
 
-                    <li class="nav-item">
-                        <a href="{% url 'booklibrary:books' %}?dups=dups">Duplicate books</a></li>
+            {% url 'booklibrary:authors' as url_authors %}
+            <li class="nav-item">
+              <a class="nav-link{% if request.path == url_authors %} active{% endif %}"
+                 href="{{ url_authors }}">All authors</a>
+            </li>
 
-                    {% url 'booklibrary:book-search' as abc4 %}
-                    <li class="nav-item" {% if request.get_full_path == abc4 %}class="active"{% endif %}>
-                        <a href="{{ abc4 }}">Add a book</a></li>
-                </ul>
-            </div>
-        </nav>
-{% endblock sidebar %}
-        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-{% block content %}
-{% load humanize %} <!-- https://docs.djangoproject.com/en/6.0/ref/contrib/humanize -->
-{% endblock content %}
-        </main>
-    </div> <!-- row -->
-</div> <!-- container-fluid -->
+            {% url 'booklibrary:locations' as url_locations %}
+            <li class="nav-item">
+              <a class="nav-link{% if request.path == url_locations %} active{% endif %}"
+                 href="{{ url_locations }}">All locations</a>
+            </li>
 
-<footer class="container-fluid text-center">
-{% block footer %}
-    <p class="float-end"><a href="#top">Back to top<i class="fas fa-arrow-up" aria-hidden="true"></i></a></p>
-    <p>&copy; 2026 Arthur Beckman &middot; </p>
-{% endblock footer %}
-</footer>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_books }}?dups=dups">Duplicate books</a>
+            </li>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://code.jquery.com/ui/1.13.1/jquery-ui.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js" integrity="sha384-7+zCNj/IqJ95wo16oMtfsKbZ9ccEh31eOz1HGyDuCQ6wgnyJNSYdrPa03rtR1zdB" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js" integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13" crossorigin="anonymous"></script>
+            {% url 'booklibrary:book-search' as url_search %}
+            <li class="nav-item">
+              <a class="nav-link{% if request.path == url_search %} active{% endif %}"
+                 href="{{ url_search }}">Add a book</a>
+            </li>
+
+          </ul>
+        </div>
+      </nav>
+      {% endblock sidebar %}
+
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        {% block content %}{% endblock content %}
+      </main>
+
+    </div>{# /.row #}
+  </div>{# /.container-fluid #}
+
+  <footer class="container-fluid text-center">
+    {% block footer %}
+    <p class="float-end">
+      <a href="#top">Back to top <i class="fas fa-arrow-up" aria-hidden="true"></i></a>
+    </p>
+    <p>&copy; {% now "Y" %} Arthur Beckman</p>
+    {% endblock footer %}
+  </footer>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.1/jquery-ui.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"
+          integrity="sha384-7+zCNj/IqJ95wo16oMtfsKbZ9ccEh31eOz1HGyDuCQ6wgnyJNSYdrPa03rtR1zdB"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"
+          integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13"
+          crossorigin="anonymous"></script>
+
 </body>
 </html>

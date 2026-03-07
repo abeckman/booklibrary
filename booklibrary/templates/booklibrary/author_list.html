@@ -1,43 +1,87 @@
 {% extends "./base_menu.html" %}
-<!-- from catalog -->
-<!-- Fonts and security from dj4e -->
+{% comment %}
+  author_list.html — Paginated, searchable author directory.
+
+  Extends:  booklibrary/base_menu.html
+  View:     booklibrary.views.AuthorListView  (SearchableListView)
+
+  Context variables:
+    page_obj  (Page)     – paginated Author queryset; use page_obj.object_list to
+                           test for an empty result
+    search    (str|None) – current search term, or None
+
+  Special feature:
+    The "author_location" checkbox, when submitted, tells the view to store
+    request.session["location"] = True so that author_detail.html shows each
+    book's shelf location rather than its copy count.
+{% endcomment %}
+
+{% block title %}Authors — Book Library{% endblock title %}
 
 {% block content %}
-{% include "misc/includes/messages.html" %}
 
-<h1>Author List</h1>
-    <div style="float:right">
-<!-- https://www.w3schools.com/howto/howto_css_search_button.asp -->
-        <form>
-            <input type="text" placeholder="Search.." name="search"
-                {% if search %} value="{{ search }}" {% endif %}
-            >
-            <button type="submit"><i class="fa fa-search"></i></button>
-            <a href="{% url 'booklibrary:books' %}"><i class="fa fa-undo"></i></a><br>
-            <input type="checkbox" id="author_location" name="author_location" value="Yes">
-            <label for="author_location"> Location of all the books for this author?</label><br>
-        </form>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">Authors</h1>
+  {% if user.is_authenticated %}
+  <a href="{% url 'booklibrary:author-create' %}" class="btn btn-primary btn-sm">
+    <i class="fas fa-plus me-1"></i>Add Author
+  </a>
+  {% endif %}
+</div>
+
+<form class="row g-2 mb-4" method="get">
+  <div class="col-auto">
+    <input type="text" class="form-control form-control-sm" name="search"
+           placeholder="Search authors…" value="{{ search|default:'' }}">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-outline-secondary btn-sm" title="Search">
+      <i class="fas fa-search"></i>
+    </button>
+    <a href="{% url 'booklibrary:authors' %}" class="btn btn-outline-secondary btn-sm" title="Reset">
+      <i class="fas fa-undo"></i>
+    </a>
+  </div>
+  <div class="col-auto d-flex align-items-center">
+    <div class="form-check mb-0">
+      <input class="form-check-input" type="checkbox" id="author_location"
+             name="author_location" value="Yes">
+      <label class="form-check-label small" for="author_location">
+        Show shelf location for each author's books
+      </label>
     </div>
+  </div>
+</form>
 
-{% if page_obj %} <!-- page_obj comes in from view and is the list of authors -->
-    <ul>
-        {% for author in page_obj %}
-        <li>
-            <a href="{{ author.get_absolute_url }}">
-            {{ author }} ({{author.date_of_birth}} - {% if author.date_of_death %}{{author.date_of_death}}{% endif %})
-            <span style="float: right;">
-                {% if perms.booklibrary.delete_author %}
-                    <a href="{% url 'booklibrary:author-update' author.id %}"><i class="fa fa-pencil"></i></a>
-                    <a href="{% url 'booklibrary:author-delete' author.id %}"><i class="fa fa-trash"></i></a>
-                {% endif %}
-            </span>
-            </a>
-        </li>
-        {% endfor %}
-        {% include "misc/includes/pagination.html" %}
-    </ul>
+{% if page_obj.object_list %}
+  <ul class="list-group list-group-flush mb-3">
+    {% for author in page_obj %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <a href="{{ author.get_absolute_url }}">
+        {{ author }}
+        <span class="text-muted small ms-2">
+          ({{ author.date_of_birth|date:"Y"|default:"?" }} –
+          {% if author.date_of_death %}{{ author.date_of_death|date:"Y" }}{% else %}present{% endif %})
+        </span>
+      </a>
+      {% if perms.booklibrary.delete_author %}
+      <span class="text-nowrap">
+        <a href="{% url 'booklibrary:author-update' author.id %}"
+           class="text-secondary me-2" title="Edit">
+          <i class="fas fa-pencil-alt fa-sm"></i>
+        </a>
+        <a href="{% url 'booklibrary:author-delete' author.id %}"
+           class="text-danger" title="Delete">
+          <i class="fas fa-trash fa-sm"></i>
+        </a>
+      </span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% include "misc/includes/pagination.html" %}
 {% else %}
-  <p>There are no authors available.</p>
+  <p class="text-muted">{% if search %}No authors matched "{{ search }}".{% else %}No authors in the library.{% endif %}</p>
 {% endif %}
-{% endblock %}
 
+{% endblock content %}

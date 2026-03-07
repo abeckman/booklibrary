@@ -1,73 +1,164 @@
 {% extends "./base_menu.html" %}
+{% comment %}
+  book_results.html — Google Books search results with per-result add forms.
+
+  Extends:  booklibrary/base_menu.html
+  View:     booklibrary.views.BookSearchView  (POST, after a successful API call)
+            booklibrary.views.add_book        (on AddForm validation failure)
+
+  Context variables:
+    books  (list[dict]) – dicts produced by search_books(); each contains:
+                          title, author1, author2, publisher, published_date,
+                          description, genre1, genre2, language, preview_link,
+                          image_link, volume_id, is_owned (bool)
+    form   (AddForm)    – user-choice form pre-populated with the user's last-used
+                          genre and location.  Rendered inside every result card
+                          so the user can choose shelving options before clicking
+                          "Add to library".  On add_book validation failure
+                          ``books`` is absent and only the error banner is shown.
+    total  (int)        – total results reported by the Google Books API
+
+  Form structure per result card
+  ───────────────────────────────
+  The AddForm has two categories of fields:
+
+    Visible (rendered with crispy):
+      book_genre, book_location, book_series, book_keywords
+
+    Hidden (per-item metadata, validated server-side):
+      title, author1, author2, publisher, publishedOn, description,
+      genre1, genre2, language, previewLink, imageLink, uniqueID, status
+
+  The hidden fields are rendered as explicit <input> elements populated from
+  the ``item`` dict so each card submits the correct book's metadata.
+  add_book validates these fields through AddForm but reads the actual book
+  data from request.session['google_books_results'][book_index] to prevent
+  client-side tampering.
+{% endcomment %}
+{% load crispy_forms_tags %}
+
+{% block title %}Search Results — Book Library{% endblock title %}
+
 {% block content %}
-<!-- This form is shown after doing the Google book lookup.
-Will post to book-add after user picks a book -->
-<div>
-    <h1>Search results</h1>
 
-    <p>
-        <a href="{% url 'booklibrary:books' %}" class="btn btn-info" role="button">Cancel</a>
-    </p>
-    {% if form.errors %}
-        {% for field in form %}
-            {% for error in field.errors %}
-                <div class="alert alert-danger">
-                    <strong>{{ error|escape }}</strong>
-                </div>
-            {% endfor %}
-        {% endfor %}
-        {% for error in form.non_field_errors %}
-            <div class="alert alert-danger">
-                <strong>{{ error|escape }}</strong>
-            </div>
-        {% endfor %}
-    {% endif %}
-<!-- https://stackoverflow.com/questions/14647723/django-forms-if-not-valid-show-form-with-error-message -->
-
-
-    <p>
-    {% for item in books %}
-	    <ul>
-		    <img src="{{ item.10 }}"></img><a id="title" class="title" href="{{ item.9 }}">{{ item.0 }}</a>
-		    <p>Authors: {{ item.1 }}, {{ item.2 }}</p>
-		    <p>Publisher: {{ item.3 }}</p>
-		    <p>Published on: {{ item.4 }}</p>
-		    <p>Genres: {{ item.6 }}, {{ item.7 }}</p>
-		    <p>Language: {{ item.8 }}</p>
-		    <i> {{ item.12 }} </i>
-		    <form method="post" action="{% url 'booklibrary:book-add' %}">
-	            {% csrf_token %}
-	            <input type="hidden" name="book_index" value="{{ forloop.counter0 }}">
-	            {# Include the hidden fields #}
-	            {% for hidden in form.hidden_fields %}
-                {{ hidden }}
-                {% endfor %}
-                {# Include the visible fields #}
-                {% for field in form.visible_fields %}
-                    <div class="fieldWrapper">
-                        {{ field.errors }}
-                        {{ field.label_tag }} {{ field }}
-                    </div>
-                {% endfor %}
-                <input type="hidden" id="title" name="title" value="{{ item.0 }}">
-                <input type="hidden" id="author1" name="author1" value="{{ item.1 }}">
-                <input type="hidden" id="author2" name="author2" value="{{ item.2 }}">
-                <input type="hidden" id="publisher" name="publisher" value="{{ item.3 }}">
-                <input type="hidden" id="publishedOn" name="publishedOn" value="{{ item.4 }}">
-                <input type="hidden" id="description" name="description" value="{{ item.5 }}">
-                <input type="hidden" id="genre1}" name="genre1" value="{{ item.6 }}">
-                <input type="hidden" id="genre2}" name="genre2" value="{{ item.7 }}">
-                <input type="hidden" id="language" name="language" value="{{ item.8 }}">
-                <input type="hidden" id="previewLink" name="previewLink" value="{{ item.9 }}">
-                <input type="hidden" id="imageLink" name="imageLink" value="{{ item.10 }}">
-                <input type="hidden" id="uniqueID" name="uniqueID" value="{{ item.11 }}">
-                <input type="hidden" id="status" name="status" value="{{ item.12 }}">
-                <button type="submit" class="btn btn-outline-info">Add to library</button>
-	        </form>
-<!-- https://stackoverflow.com/questions/6862250/change-a-django-form-field-to-a-hidden-field -->
-	    </ul>
-    {% endfor %}
-    </p>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">Search Results</h1>
+  <a href="{% url 'booklibrary:books' %}" class="btn btn-secondary">Cancel</a>
 </div>
-{% endblock %}
-<!-- https://stackoverflow.com/questions/46525406/django-saving-a-form-strips-values-so-only-the-first-word-is-saved -->
+
+{% if total %}
+<p class="text-muted mb-3">
+  Showing {{ books|length }} of {{ total }} result{{ total|pluralize }} from Google Books.
+</p>
+{% endif %}
+
+{# AddForm errors shown when add_book re-renders this template after a failed submission #}
+{% if form.errors %}
+<div class="alert alert-danger" role="alert">
+  <i class="fas fa-exclamation-circle me-2"></i>
+  <strong>Please correct the errors below before adding a book.</strong>
+  {% for field in form %}
+    {% for error in field.errors %}
+    <div class="small mt-1">{{ field.label }}: {{ error }}</div>
+    {% endfor %}
+  {% endfor %}
+  {% for error in form.non_field_errors %}
+  <div class="small mt-1">{{ error }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% for item in books %}
+<div class="card mb-4 shadow-sm">
+  <div class="card-body">
+    <div class="row g-3">
+
+      {# ── Cover thumbnail ────────────────────────────────────────────────── #}
+      {% if item.image_link %}
+      <div class="col-auto">
+        <img src="{{ item.image_link }}" alt="Cover of {{ item.title }}"
+             style="max-width:80px; max-height:120px; object-fit:cover;">
+      </div>
+      {% endif %}
+
+      {# ── Book metadata ───────────────────────────────────────────────────── #}
+      <div class="col">
+        <div class="d-flex align-items-start gap-2 mb-1">
+          <h5 class="mb-0">
+            <a href="{{ item.preview_link }}" target="_blank" rel="noopener noreferrer">
+              {{ item.title }}
+            </a>
+          </h5>
+          {% if item.is_owned %}
+          <span class="badge bg-success text-nowrap">Already owned</span>
+          {% endif %}
+        </div>
+
+        <dl class="row small text-muted mb-0">
+          <dt class="col-sm-3">Author</dt>
+          <dd class="col-sm-9">
+            {{ item.author1 }}{% if item.author2 %}, {{ item.author2 }}{% endif %}
+          </dd>
+
+          <dt class="col-sm-3">Publisher</dt>
+          <dd class="col-sm-9">{{ item.publisher }}</dd>
+
+          <dt class="col-sm-3">Published</dt>
+          <dd class="col-sm-9">{{ item.published_date }}</dd>
+
+          {% if item.genre1 %}
+          <dt class="col-sm-3">Genre</dt>
+          <dd class="col-sm-9">
+            {{ item.genre1 }}{% if item.genre2 %}, {{ item.genre2 }}{% endif %}
+          </dd>
+          {% endif %}
+
+          <dt class="col-sm-3">Language</dt>
+          <dd class="col-sm-9">{{ item.language }}</dd>
+        </dl>
+      </div>
+
+      {# ── Add-to-library form ─────────────────────────────────────────────── #}
+      <div class="col-md-4 border-start ps-3">
+        <form method="post" action="{% url 'booklibrary:book-add' %}">
+          {% csrf_token %}
+
+          {# Which entry in the session list this card corresponds to #}
+          <input type="hidden" name="book_index" value="{{ forloop.counter0 }}">
+
+          {# Visible user-choice fields rendered with Bootstrap styling #}
+          {% for field in form.visible_fields %}
+            {{ field|as_crispy_field }}
+          {% endfor %}
+
+          {# Hidden book-metadata fields — populated per-item from search results.
+             AddForm validates these for length/required; the view reads the actual
+             values from the session, not from POST, to prevent tampering. #}
+          <input type="hidden" name="title"       value="{{ item.title|default:'' }}">
+          <input type="hidden" name="author1"     value="{{ item.author1|default:'' }}">
+          <input type="hidden" name="author2"     value="{{ item.author2|default:'' }}">
+          <input type="hidden" name="publisher"   value="{{ item.publisher|default:'' }}">
+          <input type="hidden" name="publishedOn" value="{{ item.published_date|default:'' }}">
+          <input type="hidden" name="description" value="{{ item.description|default:'' }}">
+          <input type="hidden" name="genre1"      value="{{ item.genre1|default:'' }}">
+          <input type="hidden" name="genre2"      value="{{ item.genre2|default:'' }}">
+          <input type="hidden" name="language"    value="{{ item.language|default:'' }}">
+          <input type="hidden" name="previewLink" value="{{ item.preview_link|default:'' }}">
+          <input type="hidden" name="imageLink"   value="{{ item.image_link|default:'' }}">
+          <input type="hidden" name="uniqueID"    value="{{ item.volume_id|default:'' }}">
+          <input type="hidden" name="status"      value="PHY">
+
+          <button type="submit" class="btn btn-outline-primary btn-sm mt-2">
+            <i class="fas fa-plus me-1"></i>Add to library
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% empty %}
+<p class="text-muted">No results to display.</p>
+{% endfor %}
+
+{% endblock content %}

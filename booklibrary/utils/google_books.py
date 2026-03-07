@@ -3,9 +3,11 @@
 # Not much of original left
 import logging
 from urllib.parse import urlparse
+
 import requests
+from django.conf import settings
+
 from booklibrary.models import Book
-from django.conf import settings # pick up Google settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ def _safe_https_url(url, field):
     logger.warning("Rejected non-https %s in Google Books response: %r", field, url)
     return None
 
+
 class GoogleBooksError(Exception):
     """Base error for Google Books failures."""
 
@@ -36,6 +39,7 @@ class GoogleBooksAuthError(GoogleBooksError):
 
 class GoogleBooksBadRequest(GoogleBooksError):
     """Malformed query or invalid parameters."""
+
 
 def _map_error(response):
     """Raise a typed exception based on HTTP status + JSON error body."""
@@ -51,23 +55,45 @@ def _map_error(response):
         reason = err["errors"][0].get("reason") or ""
     message = err.get("message") or f"HTTP {status} from Google Books"
 
-    # Quota / rate limiting
     if status == 429 or reason in {"rateLimitExceeded", "quotaExceeded"}:
         raise GoogleBooksQuotaError(message)
 
-    # Auth / key issues
     if status == 401 or (status == 403 and reason in {"dailyLimitExceeded", "forbidden"}):
         raise GoogleBooksAuthError(message)
 
-    # Bad request
     if status in (400, 404):
         raise GoogleBooksBadRequest(message)
 
-    # Generic
     raise GoogleBooksError(message)
 
+
+def _parse_volume(item):
+    """Extract and normalise fields from a single Google Books API volume into a dict."""
+    info = item.get("volumeInfo", {})
+    authors = info.get("authors") or []
+    categories = info.get("categories") or []
+    image_links = info.get("imageLinks") or {}
+
+    volume_id = item["id"]
+    return {
+        "title":         info.get("title") or "Not Present",
+        "author1":       authors[0] if authors else "Not Present",
+        "author2":       authors[1] if len(authors) > 1 else None,
+        "publisher":     info.get("publisher") or "Not Present",
+        "published_date": info.get("publishedDate") or "Not Present",
+        "description":   info.get("description") or "Not Present",
+        "genre1":        categories[0] if categories else None,
+        "genre2":        categories[1] if len(categories) > 1 else None,
+        "language":      info.get("language") or "en",
+        "preview_link":  _safe_https_url(info.get("previewLink"), "previewLink"),
+        "image_link":    _safe_https_url(image_links.get("thumbnail"), "imageLink"),
+        "volume_id":     volume_id,
+        "is_owned":      Book.objects.filter(uniqueID=volume_id).exists(),
+    }
+
+
 def search_books(query, max_results=10, start_index=0):
-    """Call Google Books volumes.list and return parsed items list."""
+    """Call Google Books volumes.list; return (list of volume dicts, total_items)."""
     params = {
         "q": query,
         "maxResults": max_results,
@@ -78,7 +104,6 @@ def search_books(query, max_results=10, start_index=0):
     try:
         resp = requests.get(BASE_URL, params=params, timeout=5, verify=True)
     except requests.RequestException as exc:
-        # Network, DNS, timeouts, etc.
         logger.warning("Google Books request failed: %s", exc)
         raise GoogleBooksError("Network error talking to Google Books") from exc
 
@@ -94,46 +119,6 @@ def search_books(query, max_results=10, start_index=0):
     if not resp.ok:
         _map_error(resp)
 
-    data = resp.json()  # In success path Books returns valid JSON.[web:13][web:38]
-    items = data.get("items", []) or []  # Some queries return no items.[web:13]
-    results = []
-    for item in items:
-        book_info = []
-        item['volumeInfo'].setdefault('title', 'Not Present')
-        book_info.append(item['volumeInfo']['title'])
-        item['volumeInfo'].setdefault('authors', 'Not Present')
-        book_info.append(item['volumeInfo']['authors'][0])
-        if len(item['volumeInfo']['authors']) > 1:             # Only pick first two authors
-            book_info.append(item['volumeInfo']['authors'][1])
-        else:
-            book_info.append(None)
-        item['volumeInfo'].setdefault('publisher', 'Not Present')
-        book_info.append(item['volumeInfo'].get('publisher'))
-        item['volumeInfo'].setdefault('publishedDate', 'Not Present')
-        book_info.append(item['volumeInfo'].get('publishedDate'))
-        item['volumeInfo'].setdefault('description', 'Not Present')
-        book_info.append(item['volumeInfo'].get('description'))
-        if item['volumeInfo'].get('categories') == None: # no additional genre
-            book_info.append(None)
-            book_info.append(None)
-        else:
-            book_info.append(item['volumeInfo']['categories'][0])
-            if len(item['volumeInfo']['categories']) > 2:             # Only pick first two categories
-                book_info.append(item['volumeInfo']['categories'][1])
-            else:
-                book_info.append(None)
-        item['volumeInfo'].setdefault('language', 'en')
-        book_info.append(item["volumeInfo"].get("language"))
-        item['volumeInfo'].setdefault('previewLink', 'Not Present')
-        book_info.append(_safe_https_url(item["volumeInfo"].get("previewLink"), "previewLink"))
-        item['volumeInfo'].setdefault("imageLinks", {'thumbnail': 'https://i.imgur.com/fnVKr.gif'})
-        book_info.append(_safe_https_url(item['volumeInfo']["imageLinks"].get("thumbnail"), "imageLink"))
-        book_info.append(item["id"])
-        if Book.objects.filter(uniqueID = item["id"]):
-            book_info.append("owned")
-        else:
-            book_info.append("not owned")
-        results.append(book_info) # add just constructed list to overall trial book list
-
-    return results, data.get("totalItems", 0) or 0
-# https://www.geeksforgeeks.org/handling-missing-keys-python-dictionaries/
+    data = resp.json()
+    items = data.get("items") or []
+    return [_parse_volume(item) for item in items], data.get("totalItems") or 0

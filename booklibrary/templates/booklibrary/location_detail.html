@@ -1,21 +1,38 @@
 {% extends "./base_menu.html" %}
-<!-- Fonts and security from dj4e -->
+{% comment %}
+  location_detail.html — Detail page listing all books held at a shelf location.
+
+  Extends:  booklibrary/base_menu.html
+  View:     booklibrary.views.LocationDetailView  (generic.DetailView)
+
+  Context variables:
+    location  (Location) – the Location instance being displayed
+    object    (Location) – same object, Django's generic alias
+    page_obj  (Page)     – paginated BookInstance queryset for this location;
+                           always set by the view (never None), so check
+                           page_obj.object_list to test for an empty location
+{% endcomment %}
+
+{% block title %}{{ location }} — Book Library{% endblock title %}
 
 {% block content %}
 
-<h1>Contents of {{ location }} </h1>
-{% if page_obj %} <!-- page_obj comes in from view and is the list of bookinstances -->
-    <ul>
-        {% for instance in page_obj %}
-        <li>
-            <a href="{{ instance.book.get_absolute_url }}">
-            {{ instance.book }} ({{ instance.book.authors.all|join:", " }})
-            </a>
-        </li>
-        {% endfor %}
-        {% include "misc/includes/pagination.html" %}
-    </ul>
+<h1 class="mb-4">{{ location }}</h1>
+
+{% if page_obj.object_list %}
+  <ul class="list-group list-group-flush mb-3">
+    {% for instance in page_obj %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <a href="{{ instance.book.get_absolute_url }}">
+        {{ instance.book }}
+      </a>
+      <span class="text-muted small">{{ instance.book.authors.all|join:", " }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% include "misc/includes/pagination.html" %}
 {% else %}
-  <p>There are no books in this location.</p>
+  <p class="text-muted">No books are stored at this location.</p>
 {% endif %}
-{% endblock %}
+
+{% endblock content %}

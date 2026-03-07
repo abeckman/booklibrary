@@ -669,3 +669,85 @@ class TestCrossModelIntegration:
     def test_book_manager_is_bookmanager(self):
         """Ensure the custom manager is properly assigned."""
         assert isinstance(Book.objects, BookManager)
+
+
+# ──────────────────────────────────────────────────────────────
+# delete_book_if_last_instance signal tests
+# ──────────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestDeleteBookIfLastInstance:
+    """
+    The post_delete signal on BookInstance should delete the parent Book
+    when the last BookInstance for that book is removed.
+    """
+
+    def test_deleting_last_instance_deletes_book(self):
+        book = BookFactory()
+        bi = BookInstanceFactory(book=book)
+        book_pk = book.pk
+
+        bi.delete()
+
+        assert not Book.objects.filter(pk=book_pk).exists()
+
+    def test_deleting_one_of_many_instances_keeps_book(self):
+        user = UserFactory()
+        book = BookFactory()
+        bi1 = BookInstanceFactory(book=book, owner=user)
+        bi2 = BookInstanceFactory(book=book, owner=user)
+        book_pk = book.pk
+
+        bi1.delete()
+
+        assert Book.objects.filter(pk=book_pk).exists()
+        assert BookInstance.objects.filter(pk=bi2.pk).exists()
+
+    def test_deleting_second_to_last_then_last_deletes_book(self):
+        """Removing instances one by one eventually deletes the book."""
+        user = UserFactory()
+        book = BookFactory()
+        bi1 = BookInstanceFactory(book=book, owner=user)
+        bi2 = BookInstanceFactory(book=book, owner=user)
+        book_pk = book.pk
+
+        bi1.delete()
+        assert Book.objects.filter(pk=book_pk).exists()
+
+        bi2.delete()
+        assert not Book.objects.filter(pk=book_pk).exists()
+
+    def test_instance_with_no_book_does_not_crash(self):
+        """BookInstance with book=None must not raise when deleted."""
+        user = UserFactory()
+        bi = BookInstance.objects.create(owner=user, book=None)
+        bi.delete()  # should not raise
+
+    def test_deleting_book_directly_does_not_double_delete(self):
+        """
+        Deleting a Book directly (cascade removes its instances) must not
+        cause errors when the signal fires mid-cascade.
+        """
+        book = BookFactory()
+        BookInstanceFactory(book=book)
+        BookInstanceFactory(book=book)
+        book_pk = book.pk
+
+        book.delete()  # should not raise
+
+        assert not Book.objects.filter(pk=book_pk).exists()
+
+    def test_book_with_multiple_owners_deleted_when_last_instance_gone(self):
+        """Works correctly when instances are owned by different users."""
+        user1 = UserFactory()
+        user2 = UserFactory()
+        book = BookFactory()
+        bi1 = BookInstanceFactory(book=book, owner=user1)
+        bi2 = BookInstanceFactory(book=book, owner=user2)
+        book_pk = book.pk
+
+        bi1.delete()
+        assert Book.objects.filter(pk=book_pk).exists()
+
+        bi2.delete()
+        assert not Book.objects.filter(pk=book_pk).exists()

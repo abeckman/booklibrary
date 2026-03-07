@@ -1,41 +1,93 @@
 {% extends "./base_menu.html" %}
-<!-- from catalog with additions -->
-<!-- Fonts and security from dj4e -->
+{% comment %}
+  book_detail.html — Detail page for a single book.
+
+  Extends:  booklibrary/base_menu.html
+  View:     booklibrary.views.BookDetailView  (generic.DetailView)
+
+  Context variables provided by Django's DetailView:
+    book      (Book)     – the Book instance being displayed
+    object    (Book)     – same object, Django's generic alias
+    page_obj  (Page)     – paginated BookInstance queryset for physical copies
+
+  Permissions checked:
+    perms.booklibrary.delete_book  – gates the book edit and delete buttons
+    copy.owner == user             – gates edit/delete buttons on each copy
+{% endcomment %}
+
+{% block title %}{{ book.title }} — Book Library{% endblock title %}
 
 {% block content %}
 
-<h1>Title: {{ book.title }}</h1>
-<span style="float: right;">
-{% if perms.booklibrary.delete_book %}
-    <a href="{% url 'booklibrary:book-update' book.id %}"><i class="fa fa-pencil"></i></a>
-    <a href="{% url 'booklibrary:book-delete' book.id %}"><i class="fa fa-trash"></i></a>
-{% endif %}
-</span>
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <h1 class="mb-0">{{ book.title }}</h1>
+  {% if perms.booklibrary.delete_book %}
+  <span>
+    <a href="{% url 'booklibrary:book-update' book.id %}"
+       class="btn btn-sm btn-outline-secondary me-1"
+       title="Edit book">
+      <i class="fa fa-pencil"></i>
+    </a>
+    <a href="{% url 'booklibrary:book-delete' book.id %}"
+       class="btn btn-sm btn-outline-danger"
+       title="Delete book">
+      <i class="fa fa-trash"></i>
+    </a>
+  </span>
+  {% endif %}
+</div>
 
-<p><strong>Authors:</strong> {{ book.authors.all|join:", " }}</p>
-<p><strong>Summary:</strong> {{ book.summary }}</p>
-<p><strong>ISBN:</strong> {{ book.isbn }}</p>
-<p><strong>Language:</strong> {{ book.language }}</p>
-<p><strong>Genre:</strong> {{ book.genre.all|join:", " }}</p>
-<p><strong>Series:</strong> {{ book.series }}</p>
-<p><strong>Number of copies:</strong> {{ book.bookinstance_count }}</p>
+{# Book metadata #}
+<dl class="row mb-4">
+  <dt class="col-sm-2">Authors</dt>
+  <dd class="col-sm-10">{{ book.authors.all|join:", "|default:"—" }}</dd>
 
-<div style="margin-left:20px;margin-top:20px">
+  <dt class="col-sm-2">Summary</dt>
+  <dd class="col-sm-10">{{ book.summary|default:"—" }}</dd>
+
+  <dt class="col-sm-2">Language</dt>
+  <dd class="col-sm-10">{{ book.language|default:"—" }}</dd>
+
+  <dt class="col-sm-2">Genre</dt>
+  <dd class="col-sm-10">{{ book.genre.all|join:", "|default:"—" }}</dd>
+
+  <dt class="col-sm-2">Series</dt>
+  <dd class="col-sm-10">{{ book.series|default:"—" }}</dd>
+
+  <dt class="col-sm-2">Copies</dt>
+  <dd class="col-sm-10">{{ book.bookinstance_count }}</dd>
+</dl>
+
+{# Physical copies #}
 <h4>Copies</h4>
 
 {% for copy in page_obj %}
-<hr>
-<p class="text-muted"><strong>Id:</strong> {{copy.id}}
-    <span style="float: right;">
-    {% if copy.owner == user %}
-        <a href="{% url 'booklibrary:bookinstance-update' copy.id %}"><i class="fa fa-pencil"></i></a>
-        <a href="{% url 'booklibrary:bookinstance-delete' copy.id %}"><i class="fa fa-trash"></i></a>
-    {% endif %}
-    </span>
-</p>
-<p><strong>Location:</strong> {{copy.location}}</p>
-{% endfor %}
-{% include "misc/includes/pagination.html" %}
+<div class="card mb-2">
+  <div class="card-body py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <span class="text-muted small">{{ copy.id }}</span>
+      {% if copy.owner == user %}
+      <span>
+        <a href="{% url 'booklibrary:bookinstance-update' copy.id %}"
+           class="btn btn-sm btn-outline-secondary me-1"
+           title="Edit copy">
+          <i class="fa fa-pencil"></i>
+        </a>
+        <a href="{% url 'booklibrary:bookinstance-delete' copy.id %}"
+           class="btn btn-sm btn-outline-danger"
+           title="Delete copy">
+          <i class="fa fa-trash"></i>
+        </a>
+      </span>
+      {% endif %}
+    </div>
+    <p class="mb-0"><strong>Location:</strong> {{ copy.location|default:"—" }}</p>
+  </div>
 </div>
-{% endblock %}
+{% empty %}
+<p class="text-muted">No physical copies recorded.</p>
+{% endfor %}
 
+{% include "misc/includes/pagination.html" %}
+
+{% endblock content %}

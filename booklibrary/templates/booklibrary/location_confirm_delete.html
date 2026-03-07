@@ -1,14 +1,39 @@
 {% extends "./base_menu.html" %}
+{% comment %}
+  location_confirm_delete.html — Confirmation page before permanently deleting
+  a shelf location.
+
+  Extends:  booklibrary/base_menu.html
+  View:     booklibrary.views.LocationDelete  (PermissionRequiredMixin + DeleteView)
+
+  Context variables provided by Django's DeleteView:
+    location  (Location) – the Location instance to be deleted
+    object    (Location) – same object, Django's generic alias
+{% endcomment %}
+
+{% block title %}Delete Location — Book Library{% endblock title %}
 
 {% block content %}
 
-<h1>Delete Location</h1>
+<h1 class="mb-3">Delete Location</h1>
 
-<p>Are you sure you want to delete the location: {{ location }}?</p>
+<div class="alert alert-danger" role="alert">
+  <h4 class="alert-heading">
+    <i class="fas fa-exclamation-triangle me-2"></i>This action cannot be undone.
+  </h4>
+  <p class="mb-0">
+    Are you sure you want to permanently delete <strong>{{ location }}</strong>?
+  </p>
+</div>
 
-<form action="" method="POST">
+<form method="post">
   {% csrf_token %}
-  <input type="submit" action="" value="Yes, delete." />
+  <button type="submit" class="btn btn-danger me-2">
+    <i class="fas fa-trash me-1"></i>Yes, delete
+  </button>
+  <a href="{% url 'booklibrary:location-detail' location.pk %}" class="btn btn-secondary">
+    Cancel
+  </a>
 </form>
 
-{% endblock %}
+{% endblock content %}

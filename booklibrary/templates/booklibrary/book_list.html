@@ -1,51 +1,80 @@
 {% extends "./base_menu.html" %}
-<!-- from catalog -->
-<!-- Fonts and security from dj4e -->
+{% comment %}
+  book_list.html — Paginated, searchable book catalogue.
+
+  Extends:  booklibrary/base_menu.html
+  View:     booklibrary.views.BookListView
+
+  Context variables:
+    page_obj  (Page)     – paginated Book queryset; use page_obj.object_list to
+                           test for an empty result
+    search    (str|None) – current search term, or None
+    fields    (str)      – field being searched: title (default), author,
+                           genre, series, or keyword
+    dups      (str)      – non-empty when filtering to books with more than one copy
+{% endcomment %}
+
+{% block title %}Books — Book Library{% endblock title %}
 
 {% block content %}
-{% include "misc/includes/messages.html" %}
-    <h1>Book List</h1>
 
-    <div style="float:right">
-<!-- https://www.w3schools.com/howto/howto_css_search_button.asp -->
-        <form>
-            {% load crispy_forms_tags %}
-            <input type="text" placeholder="Search.." name="search"
-                {% if search %} value="{{ search }}" {% endif %}
-            >
+<h1 class="mb-4">Books</h1>
 
-            <label for="fields">Search on what?:</label>
-            <select name="fields" id="fields">
-                <option value="title">Select what to search for</option>
-                <option value="title">Title</option>
-                <option value="author">Author</option>
-                <option value="genre">Genre</option>
-                <option value="series">Series</option>
-                <option value="keyword">Keyword</option>
-            </select>
+<form class="row g-2 mb-4" method="get">
+  <div class="col-auto">
+    <input type="text" class="form-control form-control-sm" name="search"
+           placeholder="Search…" value="{{ search|default:'' }}">
+  </div>
+  <div class="col-auto">
+    <select class="form-select form-select-sm" name="fields" id="fields">
+      <option value="title"   {% if fields == "title"   %}selected{% endif %}>Title</option>
+      <option value="author"  {% if fields == "author"  %}selected{% endif %}>Author</option>
+      <option value="genre"   {% if fields == "genre"   %}selected{% endif %}>Genre</option>
+      <option value="series"  {% if fields == "series"  %}selected{% endif %}>Series</option>
+      <option value="keyword" {% if fields == "keyword" %}selected{% endif %}>Keyword</option>
+    </select>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-outline-secondary btn-sm" title="Search">
+      <i class="fas fa-search"></i>
+    </button>
+    <a href="{% url 'booklibrary:books' %}" class="btn btn-outline-secondary btn-sm" title="Reset">
+      <i class="fas fa-undo"></i>
+    </a>
+  </div>
+  {% if dups %}
+  <div class="col-auto d-flex align-items-center">
+    <span class="badge bg-warning text-dark">Duplicates only</span>
+  </div>
+  {% endif %}
+</form>
 
-            <button type="submit"><i class="fa fa-search"></i></button>
-            <a href="{% url 'booklibrary:books' %}"><i class="fa fa-undo"></i></a>
+{% if page_obj.object_list %}
+  <ul class="list-group list-group-flush mb-3">
+    {% for book in page_obj %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <a href="{{ book.get_absolute_url }}">{{ book.title }}</a>
+        <span class="text-muted small ms-2">{{ book.authors.all|join:", " }}</span>
+      </div>
+      {% if perms.booklibrary.delete_book %}
+      <span class="text-nowrap">
+        <a href="{% url 'booklibrary:book-update' book.id %}"
+           class="text-secondary me-2" title="Edit">
+          <i class="fas fa-pencil-alt fa-sm"></i>
+        </a>
+        <a href="{% url 'booklibrary:book-delete' book.id %}"
+           class="text-danger" title="Delete">
+          <i class="fas fa-trash fa-sm"></i>
+        </a>
+      </span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% include "misc/includes/pagination.html" %}
+{% else %}
+  <p class="text-muted">{% if search %}No books matched "{{ search }}".{% else %}No books in the library.{% endif %}</p>
+{% endif %}
 
-<!--            <br><br>
-            <input type="submit" value="Submit"> -->
-        </form>
-    </div>
-
-    {% if page_obj %}
-    <ul>
-      {% for book in page_obj %}
-      <li>
-        <a href="{{ book.get_absolute_url }}">{{ book.title }}</a> ({{ book.authors.all|join:", " }})
-        {% if perms.booklibrary.delete_book %}
-            <a href="{% url 'booklibrary:book-update' book.id %}"><i class="fa fa-pencil"></i></a>
-            <a href="{% url 'booklibrary:book-delete' book.id %}"><i class="fa fa-trash"></i></a>
-        {% endif %}
-      </li>
-      {% endfor %}
-      {% include "misc/includes/pagination.html" %}
-    </ul>
-    {% else %}
-      <p>There are no books in the library.</p>
-    {% endif %}
-{% endblock %}
+{% endblock content %}

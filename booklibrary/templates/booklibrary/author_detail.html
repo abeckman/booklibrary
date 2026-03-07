@@ -1,36 +1,96 @@
 {% extends "./base_menu.html" %}
-<!-- from catalog -->
-<!-- Fonts and security from dj4e -->
+{% comment %}
+  author_detail.html — Detail page for a single author.
+
+  Extends:  booklibrary/base_menu.html
+  View:     booklibrary.views.AuthorDetailView  (generic.DetailView)
+
+  Context variables provided by Django's DetailView:
+    author  (Author) – the Author instance being displayed
+    object  (Author) – same object, Django's generic alias
+
+  Session variables read:
+    request.session["location"]  (bool) – when True (set by AuthorListView when
+        browsing with ?author_location=1), switches the books list to show each
+        physical copy's shelf location instead of the book summary.
+
+  Permissions checked:
+    perms.booklibrary.delete_author – gates the edit and delete action buttons
+{% endcomment %}
+
+{% block title %}{{ author }} — Book Library{% endblock title %}
 
 {% block content %}
 
-<h1>Author: {{ author }} </h1>
-<p>{{author.date_of_birth}} - {% if author.date_of_death %}{{author.date_of_death}}{% endif %}
-<span style="float: right;">
-    {% if perms.booklibrary.delete_author %}
-        <a href="{% url 'booklibrary:author-update' author.id %}"><i class="fa fa-pencil"></i></a>
-        <a href="{% url 'booklibrary:author-delete' author.id %}"><i class="fa fa-trash"></i></a>
-    {% endif %}
-</span>
-</p>
-<div style="margin-left:20px;margin-top:20px">
-<h4>Books</h4>
-{% if request.session.location %}
-    {% for book in author.books.all %}
-        {% for copy in book.bookinstance_set.all %}
-            <p><a href="{% url 'booklibrary:book-detail' book.pk %}">{{book}}</a> {{copy.location}}</p>
-        {% endfor %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <h1 class="mb-0">{{ author }}</h1>
+  {% if perms.booklibrary.delete_author %}
+  <span>
+    <a href="{% url 'booklibrary:author-update' author.id %}"
+       class="btn btn-sm btn-outline-secondary me-1"
+       title="Edit author">
+      <i class="fa fa-pencil"></i>
+    </a>
+    <a href="{% url 'booklibrary:author-delete' author.id %}"
+       class="btn btn-sm btn-outline-danger"
+       title="Delete author">
+      <i class="fa fa-trash"></i>
+    </a>
+  </span>
+  {% endif %}
+</div>
 
-    {% endfor %}
-{% else %}
-    <dl>
-    {% for book in author.books.all %}
-        <dt><a href="{% url 'booklibrary:book-detail' book.pk %}">{{book}}</a> ({{book.bookinstance_set.all.count}})</dt>
-        <dd>{{book.summary}}</dd>
-    {% endfor %}
-    </dl>
+{# Birth / death dates — only shown when at least one is set #}
+{% if author.date_of_birth or author.date_of_death %}
+<p class="text-muted mb-4">
+  {{ author.date_of_birth|date:"N j, Y"|default:"?" }}
+  &ndash;
+  {% if author.date_of_death %}
+    {{ author.date_of_death|date:"N j, Y" }}
+  {% else %}
+    present
+  {% endif %}
+</p>
 {% endif %}
 
-</div>
-{% endblock %}
+<h4 class="mt-3">Books</h4>
 
+{% if request.session.location %}
+  {# Location mode: show each physical copy with its shelf location.         #}
+  {# Activated by AuthorListView when browsed with ?author_location=1.       #}
+  <ul class="list-group list-group-flush mb-3">
+    {% for book in author.books.all %}
+      {% for copy in book.bookinstance_set.all %}
+      <li class="list-group-item d-flex justify-content-between">
+        <a href="{% url 'booklibrary:book-detail' book.pk %}">{{ book }}</a>
+        <span class="text-muted">{{ copy.location }}</span>
+      </li>
+      {% endfor %}
+    {% empty %}
+      <li class="list-group-item text-muted">No books recorded for this author.</li>
+    {% endfor %}
+  </ul>
+
+{% else %}
+  {# Default mode: show each book with its copy count and summary. #}
+  <ul class="list-group list-group-flush mb-3">
+    {% for book in author.books.all %}
+    <li class="list-group-item">
+      <div class="d-flex justify-content-between">
+        <a href="{% url 'booklibrary:book-detail' book.pk %}">{{ book }}</a>
+        <span class="badge bg-secondary rounded-pill">
+          {{ book.bookinstance_set.count }}
+          cop{% if book.bookinstance_set.count == 1 %}y{% else %}ies{% endif %}
+        </span>
+      </div>
+      {% if book.summary %}
+      <p class="text-muted small mb-0 mt-1">{{ book.summary }}</p>
+      {% endif %}
+    </li>
+    {% empty %}
+    <li class="list-group-item text-muted">No books recorded for this author.</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% endblock content %}

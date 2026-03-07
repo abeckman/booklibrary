@@ -1,21 +1,35 @@
 {% extends "./base_menu.html" %}
-{% block content %}
-{% if messages %}
-  <ul class="messages">
-    {% for message in messages %}
-      <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
-        {{ message }}
-      </li>
-    {% endfor %}
-  </ul>
-{% endif %}
-<form action="" method="post">
-    {% csrf_token %}
-    {% load crispy_forms_tags %}
-    <table>
-        {{ form|crispy }}
-    </table>
-    <input type="submit" value="Submit" />
-</form>
-{% endblock %}
+{% comment %}
+  book_search.html — Google Books keyword search form.
 
+  Extends:  booklibrary/base_menu.html
+  View:     booklibrary.views.BookSearchView  (GET)
+            booklibrary.views.add_book        (GET, redirected here on bad method)
+
+  Context variables:
+    form  (SearchForm) – a single text field for the book search query.
+
+  On submit the form POSTs to the same URL (BookSearchView.post), which calls
+  the Google Books API and, on success, renders book_results.html.
+{% endcomment %}
+{% load crispy_forms_tags %}
+
+{% block title %}Search Google Books — Book Library{% endblock title %}
+
+{% block content %}
+
+<h1 class="mb-4">Search Google Books</h1>
+
+<div class="row">
+  <div class="col-md-6">
+    <form action="" method="post">
+      {% csrf_token %}
+      {{ form|crispy }}
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-search me-1"></i>Search
+      </button>
+    </form>
+  </div>
+</div>
+
+{% endblock content %}

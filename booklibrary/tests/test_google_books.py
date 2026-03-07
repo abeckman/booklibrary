@@ -171,19 +171,19 @@ class TestSearchBooks:
         assert total == 1
         assert len(results) == 1
         book = results[0]
-        assert book[0] == "Foundation"         # title
-        assert book[1] == "Isaac Asimov"        # author1
-        assert book[2] is None                  # author2 (only one author)
-        assert book[3] == "Gnome Press"         # publisher
-        assert book[4] == "1951"                # publishedDate
-        assert book[5] == "Classic sci-fi."     # description
-        assert book[6] == "Science Fiction"     # genre1
-        assert book[7] is None                  # genre2
-        assert book[8] == "en"                  # language
-        assert book[9] == "https://preview.example.com"
-        assert book[10] == "https://img.example.com/t.jpg"
-        assert book[11] == "asimov-001"         # volume id
-        assert book[12] == "not owned"          # ownership flag
+        assert book["title"]         == "Foundation"
+        assert book["author1"]       == "Isaac Asimov"
+        assert book["author2"]       is None
+        assert book["publisher"]     == "Gnome Press"
+        assert book["published_date"] == "1951"
+        assert book["description"]   == "Classic sci-fi."
+        assert book["genre1"]        == "Science Fiction"
+        assert book["genre2"]        is None
+        assert book["language"]      == "en"
+        assert book["preview_link"]  == "https://preview.example.com"
+        assert book["image_link"]    == "https://img.example.com/t.jpg"
+        assert book["volume_id"]     == "asimov-001"
+        assert book["is_owned"]      is False
 
     @patch("booklibrary.utils.google_books.requests.get")
     def test_two_authors_captured(self, mock_get):
@@ -192,8 +192,8 @@ class TestSearchBooks:
 
         results, _ = search_books("test")
         book = results[0]
-        assert book[1] == "Author A"
-        assert book[2] == "Author B"  # only first two captured
+        assert book["author1"] == "Author A"
+        assert book["author2"] == "Author B"  # only first two captured
 
     @patch("booklibrary.utils.google_books.requests.get")
     def test_two_categories_captured(self, mock_get):
@@ -202,8 +202,8 @@ class TestSearchBooks:
 
         results, _ = search_books("test")
         book = results[0]
-        assert book[6] == "Cat A"
-        assert book[7] == "Cat B"  # only first two captured
+        assert book["genre1"] == "Cat A"
+        assert book["genre2"] == "Cat B"  # only first two captured
 
     @patch("booklibrary.utils.google_books.requests.get")
     def test_no_categories_returns_none(self, mock_get):
@@ -213,8 +213,8 @@ class TestSearchBooks:
 
         results, _ = search_books("test")
         book = results[0]
-        assert book[6] is None
-        assert book[7] is None
+        assert book["genre1"] is None
+        assert book["genre2"] is None
 
     @patch("booklibrary.utils.google_books.requests.get")
     def test_missing_title_defaults_to_not_present(self, mock_get):
@@ -223,7 +223,7 @@ class TestSearchBooks:
         mock_get.return_value = _mock_response(200, {"items": [volume], "totalItems": 1})
 
         results, _ = search_books("test")
-        assert results[0][0] == "Not Present"
+        assert results[0]["title"] == "Not Present"
 
     @patch("booklibrary.utils.google_books.requests.get")
     def test_no_items_returns_empty(self, mock_get):
@@ -246,8 +246,6 @@ class TestSearchBooks:
         mock_get.return_value = _mock_response(200, {"items": [], "totalItems": 0})
 
         search_books("test", max_results=5)
-        _, kwargs = mock_get.call_args
-        # params are passed as keyword arg
         call_params = mock_get.call_args[1].get("params") or mock_get.call_args[0][1]
         assert call_params["maxResults"] == 5
 
@@ -287,15 +285,15 @@ class TestSearchBooks:
 
     @patch("booklibrary.utils.google_books.requests.get")
     def test_owned_book_flagged_correctly(self, mock_get):
-        """Book already in DB should be flagged 'owned'."""
+        """Book already in DB should be flagged as owned."""
         from .conftest import BookFactory
-        existing = BookFactory(uniqueID="known-id")
+        BookFactory(uniqueID="known-id")
 
         volume = _make_volume(volume_id="known-id")
         mock_get.return_value = _mock_response(200, {"items": [volume], "totalItems": 1})
 
         results, _ = search_books("test")
-        assert results[0][12] == "owned"
+        assert results[0]["is_owned"] is True
 
     @patch("booklibrary.utils.google_books.requests.get")
     def test_unknown_book_flagged_not_owned(self, mock_get):
@@ -303,7 +301,7 @@ class TestSearchBooks:
         mock_get.return_value = _mock_response(200, {"items": [volume], "totalItems": 1})
 
         results, _ = search_books("test")
-        assert results[0][12] == "not owned"
+        assert results[0]["is_owned"] is False
 
     @patch("booklibrary.utils.google_books.requests.get")
     def test_multiple_results_returned(self, mock_get):

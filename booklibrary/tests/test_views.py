@@ -56,6 +56,26 @@ def get_messages(request):
     return [str(m) for m in request._messages]
 
 
+def _fake_book(**overrides):
+    """Return a minimal search-result dict as produced by search_books()."""
+    defaults = {
+        "title":         "Title",
+        "author1":       "Author",
+        "author2":       None,
+        "publisher":     "Pub",
+        "published_date": "2020",
+        "description":   "Desc",
+        "genre1":        None,
+        "genre2":        None,
+        "language":      "en",
+        "preview_link":  "https://p.example.com",
+        "image_link":    "https://img.example.com",
+        "volume_id":     "ID1",
+        "is_owned":      False,
+    }
+    return {**defaults, **overrides}
+
+
 # ── index ─────────────────────────────────────────────────────────────────────
 
 @pytest.mark.django_db
@@ -410,8 +430,7 @@ class TestBookSearchView:
     def test_post_with_results_renders_results_template(self, mock_search, rf):
         """When results come back and a 'None' genre exists in DB, results render."""
         GenreFactory(name="None")  # view calls Genre.objects.get(name='None') by default
-        fake_books = [["Title", "Author", None, "Pub", "2020", "Desc",
-                       None, None, "en", "http://p", "http://img", "ID1", "not owned"]]
+        fake_books = [_fake_book()]
         mock_search.return_value = (fake_books, 1)
         request = rf.post("/booklibrary/book/search/", {"search": "test"})
         setup_request(request)
@@ -422,14 +441,39 @@ class TestBookSearchView:
     @patch("booklibrary.views.search_books")
     def test_post_with_results_missing_none_genre_raises(self, mock_search, rf):
         """Regression: view must not crash when Genre 'None' is absent from DB."""
-        fake_books = [["Title", "Author", None, "Pub", "2020", "Desc",
-                       None, None, "en", "http://p", "http://img", "ID1", "not owned"]]
+        fake_books = [_fake_book()]
         mock_search.return_value = (fake_books, 1)
         request = rf.post("/booklibrary/book/search/", {"search": "test"})
         setup_request(request)
         response = BookSearchView.as_view()(request)
         assert response.status_code == 200
         assert response.template_name == "booklibrary/book_results.html"
+
+    @patch("booklibrary.views.search_books")
+    def test_build_add_form_restores_saved_location(self, mock_search, rf):
+        """When repeat_location is in the session, the AddForm is pre-populated with it."""
+        location = LocationFactory()
+        mock_search.return_value = ([_fake_book()], 1)
+        request = rf.post("/booklibrary/book/search/", {"search": "test"})
+        setup_request(request, session_data={"repeat_location": location.pk})
+        response = BookSearchView.as_view()(request)
+
+        assert response.status_code == 200
+        form = response.context_data["form"]
+        assert form.initial.get("book_location") == location
+
+    @patch("booklibrary.views.search_books")
+    def test_build_add_form_ignores_deleted_location(self, mock_search, rf):
+        """A stale repeat_location PK (location deleted) does not crash the form build."""
+        mock_search.return_value = ([_fake_book(volume_id="ID2")], 1)
+        request = rf.post("/booklibrary/book/search/", {"search": "test"})
+        setup_request(request, session_data={"repeat_location": 99999})
+        response = BookSearchView.as_view()(request)
+
+        assert response.status_code == 200
+        form = response.context_data["form"]
+        # Stale pk → no matching Location → initial is None, no crash
+        assert form.initial.get("book_location") is None
 
 
 # ── add_book ──────────────────────────────────────────────────────────────────
@@ -476,11 +520,13 @@ class TestAddBookView:
         }
         MockForm.return_value = mock_form
 
-        book_data = [
-            "Dune", "Frank Herbert", "", "Chilton Books", "1965", "A sci-fi epic.",
-            "Science Fiction", "", "English", "https://example.com",
-            "https://example.com/img.jpg", "dune-001", "PH",
-        ]
+        book_data = _fake_book(
+            title="Dune", author1="Frank Herbert", publisher="Chilton Books",
+            published_date="1965", description="A sci-fi epic.",
+            genre1="Science Fiction", language="English",
+            preview_link="https://example.com", image_link="https://example.com/img.jpg",
+            volume_id="dune-001",
+        )
         session_data = {"google_books_results": [book_data]}
 
         request = rf.post("/booklibrary/book/add/", {"book_index": "0"})
@@ -505,10 +551,10 @@ class TestAddBookView:
         }
         MockForm.return_value = mock_form
 
-        book_data = [
-            existing.title, "", "", "", None, existing.summary or "",
-            "", "", "English", "", "", existing.uniqueID, "PH",
-        ]
+        book_data = _fake_book(
+            title=existing.title, description=existing.summary or "",
+            language="English", volume_id=existing.uniqueID,
+        )
         session_data = {"google_books_results": [book_data]}
 
         request = rf.post("/booklibrary/book/add/", {"book_index": "0"})
@@ -517,6 +563,58 @@ class TestAddBookView:
 
         msgs = get_messages(request)
         assert any("Duplicate" in m for m in msgs)
+
+    @patch("booklibrary.views.AddForm")
+    def test_post_valid_saves_location_to_session(self, MockForm, rf, user):
+        """After a successful add, the chosen location's PK is stored in the session."""
+        location = LocationFactory()
+
+        mock_form = MagicMock()
+        mock_form.is_valid.return_value = True
+        mock_form.cleaned_data = {
+            "book_genre": Genre.objects.none(),
+            "book_location": location,
+            "book_keywords": None,
+            "book_series": None,
+        }
+        MockForm.return_value = mock_form
+
+        book_data = _fake_book(
+            title="Foundation", author1="Isaac Asimov", publisher="Gnome Press",
+            published_date="1951", description="Epic sci-fi.", genre1="Science Fiction",
+            language="English", preview_link="https://example.com",
+            image_link="https://example.com/img.jpg", volume_id="foundation-001",
+        )
+        request = rf.post("/booklibrary/book/add/", {"book_index": "0"})
+        setup_request(request, user=user, session_data={"google_books_results": [book_data]})
+        add_book(request)
+
+        assert request.session.get('repeat_location') == location.pk
+
+    @patch("booklibrary.views.AddForm")
+    def test_post_valid_no_location_does_not_save_to_session(self, MockForm, rf, user):
+        """When no location is chosen, repeat_location is not written to the session."""
+        mock_form = MagicMock()
+        mock_form.is_valid.return_value = True
+        mock_form.cleaned_data = {
+            "book_genre": Genre.objects.none(),
+            "book_location": None,
+            "book_keywords": None,
+            "book_series": None,
+        }
+        MockForm.return_value = mock_form
+
+        book_data = _fake_book(
+            title="Foundation", author1="Isaac Asimov", publisher="Gnome Press",
+            published_date="1951", description="Epic sci-fi.", genre1="Science Fiction",
+            language="English", preview_link="https://example.com",
+            image_link="https://example.com/img.jpg", volume_id="foundation-002",
+        )
+        request = rf.post("/booklibrary/book/add/", {"book_index": "0"})
+        setup_request(request, user=user, session_data={"google_books_results": [book_data]})
+        add_book(request)
+
+        assert 'repeat_location' not in request.session
 
     @patch("booklibrary.views.AddForm")
     def test_post_invalid_form_rerenders_results(self, MockForm, rf, user):
