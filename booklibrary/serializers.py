@@ -8,6 +8,8 @@ from booklibrary.models import Book
 
 
 class BookSerializer(serializers.ModelSerializer):
+    """Serializes all catalogue fields of a Book for the REST API."""
+
     class Meta:
         model = Book
         fields = [

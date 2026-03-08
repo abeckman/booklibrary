@@ -1,3 +1,8 @@
+"""
+Signal handlers for the booklibrary app.
+
+Registered automatically when BooklibraryConfig.ready() runs.
+"""
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 

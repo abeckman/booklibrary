@@ -69,7 +69,10 @@ class Series(models.Model):
 
 
 class BookManager(models.Manager):
+    """Custom manager that adds aggregate annotations to Book querysets."""
+
     def with_counts(self):
+        """Return a queryset with ``num_copies`` annotated (count of BookInstances)."""
         return self.annotate(num_copies=models.Count('bookinstance'))
 
 
@@ -119,19 +122,23 @@ class Book(models.Model):
         ordering = ['title']
 
     def display_genre(self):
+        """Return up to three genre names as a comma-separated string (used in admin)."""
         return ', '.join(genre.name for genre in self.genre.all()[:3])
 
     display_genre.short_description = 'Genre'
 
     def display_authors(self):
+        """Return up to three author last names as a comma-separated string (used in admin)."""
         return ', '.join(author.last_name for author in self.authors.all()[:3])
 
     display_authors.short_description = 'Authors'
 
     def bookinstance_count(self):
+        """Return the number of physical copies (BookInstances) for this book."""
         return self.bookinstance_set.count()
 
     def get_absolute_url(self):
+        """Return the canonical URL for this book's detail page."""
         return reverse('booklibrary:book-detail', args=[str(self.id)])
 
     def __str__(self):

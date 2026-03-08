@@ -1,10 +1,21 @@
-import csv  # https://docs.python.org/3/library/csv.html
+"""
+Bulk-load UNESCO World Heritage Site data from a CSV file.
 
-# https://django-extensions.readthedocs.io/en/latest/runscript.html
+Run via django-extensions::
 
-# python3 manage.py runscript many_load
+    python batch/manage.py runscript many_load
+
+The script expects ``unesco/whc-sites-2018-clean.csv`` to exist relative
+to the working directory.  It clears all existing UNESCO records before
+importing, so it is safe to re-run for a fresh load.
+
+CSV column order: name, description, justification, year, longitude,
+latitude, area_hectares, category, states, region, iso.
+"""
+import csv
 
 from unesco.models import Site, Category, Iso, Region, State
+
 
 def run():
     fhand = open('unesco/whc-sites-2018-clean.csv')

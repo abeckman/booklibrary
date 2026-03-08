@@ -1,6 +1,33 @@
-# originally from
-# https://github.com/Manikaran20/Books-Inventory/blob/master/SpoonshotAssignment/googlebooks/book_search.py
-# Not much of original left
+"""
+Google Books API integration for the booklibrary app.
+
+Public interface
+----------------
+search_books(query, max_results, start_index)
+    Query the Google Books volumes.list endpoint.
+    Returns (list[dict], total_items).  Each dict contains the fields
+    expected by BookSearchView / add_book (title, author1, author2,
+    publisher, published_date, description, genre1, genre2, language,
+    preview_link, image_link, volume_id, is_owned).
+
+Error hierarchy
+---------------
+GoogleBooksError          – base; covers network errors and unexpected statuses.
+  GoogleBooksQuotaError   – HTTP 429 or rateLimitExceeded / quotaExceeded reason.
+  GoogleBooksAuthError    – HTTP 401 or 403 dailyLimitExceeded / forbidden.
+  GoogleBooksBadRequest   – HTTP 400 or 404.
+
+Configuration
+-------------
+GOOGLE_BOOKS_API_KEY   (required) – set in Django settings.
+GOOGLE_BOOKS_API_BASE  (optional) – override the API base URL for testing.
+
+Security
+--------
+Only https:// URLs from the response are accepted for previewLink / imageLink.
+The response host is checked against the expected host to guard against
+redirect-based attacks.
+"""
 import logging
 from urllib.parse import urlparse
 

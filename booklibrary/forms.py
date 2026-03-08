@@ -1,8 +1,20 @@
+"""
+Forms for the booklibrary app.
+
+SearchForm  – simple single-field search used by BookSearchView.
+AddForm     – captures the user's local choices (genre, location, series,
+              keywords) when adding a book sourced from Google Books results.
+              Hidden fields carry book metadata for validation but the actual
+              data used to create the Book record is always read from the
+              server-side session, not from cleaned_data.
+"""
 from django import forms
 from booklibrary.models import Genre, Keywords, Location, Series
 
 
 class SearchForm(forms.Form):
+    """Single-field search form for querying the Google Books API."""
+
     search = forms.CharField(
         widget=forms.TextInput(attrs={
             'class': 'form-control',

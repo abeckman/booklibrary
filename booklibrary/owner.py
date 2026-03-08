@@ -1,3 +1,13 @@
+"""
+Owner-enforcing generic view mixins.
+
+OwnerCreateView  – CreateView that sets owner = request.user on save.
+OwnerUpdateView  – UpdateView that restricts the queryset to the request user's objects.
+OwnerDeleteView  – DeleteView that restricts the queryset to the request user's objects.
+
+Non-owners receive a 404 response rather than a permission-denied error so
+that the existence of other users' records is not disclosed.
+"""
 from django.views.generic import CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404, HttpResponseNotFound

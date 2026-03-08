@@ -1,3 +1,16 @@
+"""
+Custom template tags for the booklibrary app.
+
+modify_query  – rewrites the current URL's query string without a full page
+                description, making it easy to build sort/filter/page links
+                that preserve existing parameters.
+
+Usage in templates::
+
+    {% load utility_tags %}
+    <a href="{% modify_query page=page_obj.next_page_number %}">Next</a>
+    <a href="{% modify_query 'sort' sort='title' %}">Sort by title</a>
+"""
 from urllib.parse import urlencode
 
 from django import template
@@ -9,7 +22,11 @@ register = template.Library()
 
 
 def construct_query_string(context, query_params):
-    # empty values will be removed
+    """Build a safe URL string from the current path plus the given query params.
+
+    Empty values are omitted. Ampersands are escaped to ``&amp;`` for HTML safety.
+    Returns a ``SafeString`` suitable for use directly in href attributes.
+    """
     path = conditional_escape(context["request"].path)
     if len(query_params):
         encoded_params = urlencode([
@@ -18,9 +35,6 @@ def construct_query_string(context, query_params):
         ]).replace("&", "&amp;")
         return mark_safe(f"{path}?{encoded_params}")
     return mark_safe(path)
-
-
-"""TAGS"""
 
 
 @register.simple_tag(takes_context=True)

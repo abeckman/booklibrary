@@ -1,3 +1,12 @@
+"""
+Unit tests for booklibrary models.
+
+Covers field validation, string representations, ordering, FK/M2M
+relationships, the BookManager.with_counts() annotation, and the
+delete_book_if_last_instance post_delete signal.
+
+All factories are defined inline at the top of this module.
+"""
 import pytest
 import uuid
 from datetime import date
