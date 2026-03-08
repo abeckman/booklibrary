@@ -384,7 +384,7 @@ def add_book(request):
         defaults=dict(
             title=title, summary=description, publisher=publisher,
             publishedDate=published_on, previewLink=preview_link,
-            imageLink=image_link, contentType="PH",
+            imageLink=image_link, contentType="PHY",
         ),
     )
     if not created:
@@ -438,7 +438,7 @@ class AuthorUpdate(PermissionRequiredMixin, UpdateView):
 
     model = Author
     fields = ['full_name', 'first_name', 'last_name', 'date_of_birth', 'date_of_death']
-    permission_required = 'booklibrary.author.can_change_author'
+    permission_required = 'booklibrary.change_author'
 
 
 class AuthorDelete(PermissionRequiredMixin, DeleteView):
@@ -446,7 +446,7 @@ class AuthorDelete(PermissionRequiredMixin, DeleteView):
 
     model = Author
     success_url = reverse_lazy('booklibrary:authors')
-    permission_required = 'booklibrary.author.can_delete_author'
+    permission_required = 'booklibrary.delete_author'
 
 
 class LocationCreate(LoginRequiredMixin, CreateView):
@@ -461,7 +461,7 @@ class LocationUpdate(PermissionRequiredMixin, UpdateView):
 
     model = Location
     fields = ['name']
-    permission_required = 'booklibrary.location.can_change_location'
+    permission_required = 'booklibrary.change_location'
 
 
 class LocationDelete(PermissionRequiredMixin, DeleteView):
@@ -469,7 +469,7 @@ class LocationDelete(PermissionRequiredMixin, DeleteView):
 
     model = Location
     success_url = reverse_lazy('booklibrary:locations')
-    permission_required = 'booklibrary.location.can_delete_location'
+    permission_required = 'booklibrary.delete_location'
 
 
 class BookOwnerQuerysetMixin:
