@@ -257,14 +257,19 @@ class TestCreateBookFromGoogleData:
         assert book.series == series
 
     def test_adds_keywords_from_cleaned_data(self):
+        from booklibrary.models import Keywords
         user = UserFactory()
-        kw = KeywordsFactory(name="space opera")
+        kw1 = KeywordsFactory(name="space opera")
+        kw2 = KeywordsFactory(name="dystopia")
         book, _ = create_book_from_google_data(
             _fake_book_data(volume_id="kw-1"),
-            _fake_cleaned_data(book_keywords=kw),
+            _fake_cleaned_data(
+                book_keywords=Keywords.objects.filter(pk__in=[kw1.pk, kw2.pk])
+            ),
             user,
         )
         assert book.keywords.filter(name="space opera").exists()
+        assert book.keywords.filter(name="dystopia").exists()
 
     def test_published_date_is_parsed(self):
         user = UserFactory()

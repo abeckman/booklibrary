@@ -73,10 +73,6 @@ class TestKeywords:
         assert kw.pk is not None
         assert kw.name == "Climbing"
 
-    def test_default_value(self):
-        kw = Keywords.objects.create()
-        assert kw.name == "None"
-
     def test_str_representation(self):
         kw = KeywordsFactory(name="Knitting")
         assert str(kw) == "Knitting"
@@ -136,10 +132,6 @@ class TestSeries:
     def test_create_series(self):
         series = SeriesFactory(name="Foundation")
         assert series.name == "Foundation"
-
-    def test_default_value(self):
-        series = Series.objects.create()
-        assert series.name == "None"
 
     def test_str_representation(self):
         series = SeriesFactory(name="Dune")

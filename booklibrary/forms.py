@@ -51,10 +51,9 @@ class AddForm(forms.Form):
         required=False,
         empty_label='— select series —',
     )
-    book_keywords = forms.ModelChoiceField(
+    book_keywords = forms.ModelMultipleChoiceField(
         queryset=Keywords.objects.all(),
         required=False,
-        empty_label='— select keyword —',
         help_text='Keywords (up to 3)',
     )
 

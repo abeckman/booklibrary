@@ -84,11 +84,11 @@ def create_book_from_google_data(book_data, cleaned_data, user):
     )
 
     for name in [book_data["author1"], book_data["author2"]]:
-        if name and name != "None":
+        if name:
             book.authors.add(_get_or_create_author(name))
 
     for genre_name in [book_data["genre1"], book_data["genre2"]]:
-        if genre_name and genre_name != "None":
+        if genre_name:
             genre_obj, _ = Genre.objects.get_or_create(name=genre_name)
             book.genre.add(genre_obj)
 
@@ -96,7 +96,7 @@ def create_book_from_google_data(book_data, cleaned_data, user):
         book.genre.add(*cleaned_data["book_genre"])
 
     language = book_data["language"]
-    if language and language != "None":
+    if language:
         lang_obj, _ = Language.objects.get_or_create(name=language)
         book.language = lang_obj
 
@@ -104,7 +104,7 @@ def create_book_from_google_data(book_data, cleaned_data, user):
         book.series = cleaned_data["book_series"]
 
     if cleaned_data["book_keywords"]:
-        book.keywords.add(cleaned_data["book_keywords"])
+        book.keywords.add(*cleaned_data["book_keywords"])
 
     book.save()
 

@@ -23,7 +23,6 @@ class Keywords(models.Model):
     name = models.CharField(
         max_length=200,
         help_text="Enter key words (e.g. Climbing, Knitting, etc.)",
-        default='None',
     )
 
     def __str__(self):
@@ -61,7 +60,6 @@ class Series(models.Model):
     name = models.CharField(
         max_length=200,
         help_text="Enter a series name that the book is part of",
-        default='None',
     )
 
     def __str__(self):
