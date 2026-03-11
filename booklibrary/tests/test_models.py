@@ -4,15 +4,12 @@ Unit tests for booklibrary models.
 Covers field validation, string representations, ordering, FK/M2M
 relationships, the BookManager.with_counts() annotation, and the
 delete_book_if_last_instance post_delete signal.
-
-All factories are defined inline at the top of this module.
 """
 import pytest
 import uuid
 from datetime import date
 from unittest.mock import patch
 
-import factory
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.contrib.auth import get_user_model
@@ -21,116 +18,13 @@ from booklibrary.models import (
     Genre, Keywords, Language, Location, Series,
     Book, BookInstance, Author, BookManager,
 )
+from booklibrary.tests.conftest import (
+    UserFactory, GenreFactory, KeywordsFactory, LanguageFactory,
+    LocationFactory, SeriesFactory, AuthorFactory, BookFactory,
+    BookInstanceFactory,
+)
 
 User = get_user_model()
-
-
-# ──────────────────────────────────────────────────────────────
-# Factories
-# ──────────────────────────────────────────────────────────────
-
-class UserFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = User
-
-    username = factory.Sequence(lambda n: f"user{n}")
-    password = factory.PostGenerationMethodCall("set_password", "testpass123")
-
-
-class GenreFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Genre
-
-    name = factory.Sequence(lambda n: f"Genre {n}")
-
-
-class KeywordsFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Keywords
-
-    name = factory.Sequence(lambda n: f"Keyword {n}")
-
-
-class LanguageFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Language
-
-    name = "English"
-
-
-class LocationFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Location
-
-    name = factory.Sequence(lambda n: f"Shelf {n}")
-
-
-class SeriesFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Series
-
-    name = factory.Sequence(lambda n: f"Series {n}")
-
-
-class AuthorFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Author
-
-    full_name = factory.LazyAttribute(lambda o: f"{o.first_name} {o.last_name}")
-    first_name = factory.Faker("first_name")
-    last_name = factory.Faker("last_name")
-    date_of_birth = None
-    date_of_death = None
-
-
-class BookFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Book
-        skip_postgeneration_save = True
-
-    title = factory.Sequence(lambda n: f"Book Title {n}")
-    summary = factory.Faker("paragraph")
-    publisher = "Test Publisher"
-    publishedDate = date(2020, 1, 1)
-    language = factory.SubFactory(LanguageFactory)
-    series = factory.SubFactory(SeriesFactory)
-    previewLink = "https://example.com/preview"
-    imageLink = "https://example.com/image.jpg"
-    uniqueID = factory.Sequence(lambda n: f"UID-{n}")
-    contentType = "PHY"
-
-    @factory.post_generation
-    def authors(self, create, extracted, **kwargs):
-        if not create:
-            return
-        if extracted:
-            for author in extracted:
-                self.authors.add(author)
-
-    @factory.post_generation
-    def genre(self, create, extracted, **kwargs):
-        if not create:
-            return
-        if extracted:
-            for g in extracted:
-                self.genre.add(g)
-
-    @factory.post_generation
-    def keywords(self, create, extracted, **kwargs):
-        if not create:
-            return
-        if extracted:
-            for kw in extracted:
-                self.keywords.add(kw)
-
-
-class BookInstanceFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = BookInstance
-
-    book = factory.SubFactory(BookFactory)
-    location = factory.SubFactory(LocationFactory)
-    owner = factory.SubFactory(UserFactory)
 
 
 # ──────────────────────────────────────────────────────────────

@@ -475,6 +475,23 @@ class TestBookSearchView:
         # Stale pk → no matching Location → initial is None, no crash
         assert form.initial.get("book_location") is None
 
+    @patch("booklibrary.views.search_books")
+    def test_fetch_books_annotates_owned_books(self, mock_search, rf):
+        """_fetch_books() sets is_owned=True for volume_ids already in the DB."""
+        existing = BookFactory(uniqueID="owned-vol")
+        mock_search.return_value = (
+            [_fake_book(volume_id="owned-vol"), _fake_book(volume_id="new-vol")],
+            2,
+        )
+        request = rf.post("/booklibrary/book/search/", {"search": "test"})
+        setup_request(request)
+        response = BookSearchView.as_view()(request)
+        assert response.status_code == 200
+        books = request.session.get("google_books_results", [])
+        owned = {b["volume_id"]: b["is_owned"] for b in books}
+        assert owned["owned-vol"] is True
+        assert owned["new-vol"] is False
+
 
 # ── add_book ──────────────────────────────────────────────────────────────────
 

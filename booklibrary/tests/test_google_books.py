@@ -284,20 +284,9 @@ class TestSearchBooks:
             search_books("test")
 
     @patch("booklibrary.utils.google_books.requests.get")
-    def test_owned_book_flagged_correctly(self, mock_get):
-        """Book already in DB should be flagged as owned."""
-        from .conftest import BookFactory
-        BookFactory(uniqueID="known-id")
-
-        volume = _make_volume(volume_id="known-id")
-        mock_get.return_value = _mock_response(200, {"items": [volume], "totalItems": 1})
-
-        results, _ = search_books("test")
-        assert results[0]["is_owned"] is True
-
-    @patch("booklibrary.utils.google_books.requests.get")
-    def test_unknown_book_flagged_not_owned(self, mock_get):
-        volume = _make_volume(volume_id="brand-new-id")
+    def test_is_owned_always_false_from_utility(self, mock_get):
+        """search_books() always returns is_owned=False; annotation is the caller's job."""
+        volume = _make_volume(volume_id="any-id")
         mock_get.return_value = _mock_response(200, {"items": [volume], "totalItems": 1})
 
         results, _ = search_books("test")

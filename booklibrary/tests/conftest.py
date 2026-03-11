@@ -1,8 +1,5 @@
 """
 Shared factories and pytest fixtures for the booklibrary test suite.
-
-Factories mirror those in test_models.py so that test_views.py, test_forms.py,
-and test_google_books.py can use them without circular imports.
 """
 import pytest
 import factory

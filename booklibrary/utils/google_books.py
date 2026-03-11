@@ -8,7 +8,8 @@ search_books(query, max_results, start_index)
     Returns (list[dict], total_items).  Each dict contains the fields
     expected by BookSearchView / add_book (title, author1, author2,
     publisher, published_date, description, genre1, genre2, language,
-    preview_link, image_link, volume_id, is_owned).
+    preview_link, image_link, volume_id).  is_owned is always False here;
+    callers should annotate it after the call.
 
 Error hierarchy
 ---------------
@@ -33,8 +34,6 @@ from urllib.parse import urlparse
 
 import requests
 from django.conf import settings
-
-from booklibrary.models import Book
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +114,7 @@ def _parse_volume(item):
         "preview_link":  _safe_https_url(info.get("previewLink"), "previewLink"),
         "image_link":    _safe_https_url(image_links.get("thumbnail"), "imageLink"),
         "volume_id":     volume_id,
-        "is_owned":      Book.objects.filter(uniqueID=volume_id).exists(),
+        "is_owned":      False,
     }
 
 

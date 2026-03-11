@@ -25,8 +25,6 @@ Internal helpers
 ----------------
 SearchableListView      Reusable ListView base with single-field search and pagination.
 BookOwnerQuerysetMixin  Limits book querysets to the current owner (or all for superusers).
-_parse_published_date   Normalises Google Books date strings to datetime objects.
-_get_or_create_author   Deduplicates authors by normalised, accent-stripped name.
 
 Security note
 -------------
@@ -39,16 +37,14 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
-from booklibrary.models import Book, Author, BookInstance, Genre, Language, Keywords, Location, Series
+from booklibrary.models import Book, Author, BookInstance, Genre, Keywords, Location, Series
 from booklibrary.owner import OwnerUpdateView, OwnerDeleteView
 from django.views import generic
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from datetime import datetime
 from django.contrib.auth.decorators import login_required
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from nameparser import HumanName
-import unidecode
 from django.contrib import messages
+from .services import create_book_from_google_data
 from django.views.generic import TemplateView
 from django.template.response import TemplateResponse
 from .forms import SearchForm, AddForm
@@ -221,21 +217,32 @@ class BookSearchView(TemplateView):
     def _fetch_books(self, request, query):
         """Call Google Books API, message any errors, and return (books, total)."""
         try:
-            return search_books(query, max_results=10)
+            books, total = search_books(query, max_results=10)
         except GoogleBooksQuotaError:
             messages.error(request,
                 "Google Books is receiving too many requests right now. "
                 "Please wait a bit and try again.")
+            return [], 0
         except GoogleBooksAuthError:
             messages.error(request,
                 "Search is temporarily unavailable due to a configuration problem.")
+            return [], 0
         except GoogleBooksBadRequest:
             messages.error(request,
                 "That search could not be sent to Google. Try a simpler query.")
+            return [], 0
         except GoogleBooksError:
             messages.error(request,
                 "There was an unexpected error talking to Google Books. Please try again.")
-        return [], 0
+            return [], 0
+        owned_ids = set(
+            Book.objects.filter(
+                uniqueID__in=[b["volume_id"] for b in books]
+            ).values_list("uniqueID", flat=True)
+        )
+        for book in books:
+            book["is_owned"] = book["volume_id"] in owned_ids
+        return books, total
 
     def _build_add_form(self, request):
         """Return an AddForm pre-populated with the user's last-used genre and location."""
@@ -294,31 +301,6 @@ class LocationDetailView(generic.DetailView):
         return ctx
 
 
-def _parse_published_date(value):
-    """Normalize a Google Books date string to a datetime, or None."""
-    if not isinstance(value, str) or not value:
-        return None
-    if value == "Not Present":
-        return datetime.now()
-    if len(value) == 4:
-        return datetime(int(value), 1, 1)
-    if len(value) == 7:
-        return datetime(int(value[:4]), int(value[5:7]), 1)
-    return value  # full date string — pass through unchanged
-
-
-def _get_or_create_author(full_name):
-    """Look up or create an Author by full name, normalising accented characters."""
-    parsed = HumanName(full_name)
-    first = unidecode.unidecode(parsed.first)
-    last = unidecode.unidecode(parsed.last)
-    author, _ = Author.objects.filter(
-        first_name__icontains=first,
-        last_name__icontains=last,
-    ).get_or_create(full_name=full_name, first_name=first, last_name=last)
-    return author
-
-
 @login_required
 def add_book(request):
     """
@@ -332,9 +314,8 @@ def add_book(request):
     not from submitted form fields, to prevent client-side tampering.  The form
     controls only the user's local choices (location, extra genres, keywords, series).
 
-    On success, creates a Book (or finds the existing one by uniqueID), attaches
-    related objects, creates a BookInstance owned by the current user, and redirects
-    to the book detail page.
+    On success, delegates to create_book_from_google_data(), then redirects to the
+    book detail page.
     """
     if request.method != 'POST':
         return render(request, 'booklibrary/book_search.html', {'form': AddForm()})
@@ -353,74 +334,28 @@ def add_book(request):
         messages.error(request, "Invalid book selection. Please search again.")
         return redirect('booklibrary:book-search')
 
-    location = cd['book_location']
-
-    title        = book_data["title"]
-    author1      = book_data["author1"]
-    author2      = book_data["author2"]
-    publisher    = book_data["publisher"]
-    published_on = book_data["published_date"]
-    description  = book_data["description"]
-    genre1       = book_data["genre1"]
-    genre2       = book_data["genre2"]
-    language     = book_data["language"]
-    preview_link = book_data["preview_link"]
-    image_link   = book_data["image_link"]
-    unique_id    = book_data["volume_id"]
-
-    published_on = _parse_published_date(published_on)
-
     logger.debug(
-        "add_book: title=%r author1=%r author2=%r publisher=%r published=%r "
+        "add_book: title=%r author1=%r author2=%r publisher=%r "
         "genre1=%r genre2=%r language=%r uniqueID=%r is_owned=%r "
         "form_genre=%r location=%r keywords=%r series=%r",
-        title, author1, author2, publisher, published_on,
-        genre1, genre2, language, unique_id, book_data["is_owned"],
-        cd['book_genre'], location, cd['book_keywords'], cd['book_series'],
+        book_data["title"], book_data["author1"], book_data["author2"],
+        book_data["publisher"], book_data["genre1"], book_data["genre2"],
+        book_data["language"], book_data["volume_id"], book_data["is_owned"],
+        cd['book_genre'], cd['book_location'], cd['book_keywords'], cd['book_series'],
     )
 
-    book, created = Book.objects.get_or_create(
-        uniqueID=unique_id,
-        defaults=dict(
-            title=title, summary=description, publisher=publisher,
-            publishedDate=published_on, previewLink=preview_link,
-            imageLink=image_link, contentType="PHY",
-        ),
-    )
+    book, created = create_book_from_google_data(book_data, cd, request.user)
+
     if not created:
         messages.info(request, 'Duplicate book')
 
-    for name in [author1, author2]:
-        if name and name != "None":
-            book.authors.add(_get_or_create_author(name))
-
-    for genre_name in [genre1, genre2]:
-        if genre_name and genre_name != "None":
-            genre_obj, _ = Genre.objects.get_or_create(name=genre_name)
-            book.genre.add(genre_obj)
-
     if cd['book_genre']:
-        book.genre.add(*cd['book_genre'])
         first_genre = cd['book_genre'].first()
         if first_genre:
             request.session['repeat_genre'] = first_genre.name
 
-    if language and language != "None":
-        lang_obj, _ = Language.objects.get_or_create(name=language)
-        book.language = lang_obj
-
-    if cd['book_series']:
-        book.series = cd['book_series']
-
-    if cd['book_keywords']:
-        book.keywords.add(cd['book_keywords'])
-
-    book.save()
-
-    BookInstance.objects.create(owner=request.user, book=book, location=location)
-
-    if location:
-        request.session['repeat_location'] = location.pk
+    if cd['book_location']:
+        request.session['repeat_location'] = cd['book_location'].pk
 
     return redirect('booklibrary:book-detail', pk=book.pk)
 
@@ -430,7 +365,6 @@ class AuthorCreate(LoginRequiredMixin, CreateView):
 
     model = Author
     fields = ['first_name', 'last_name', 'date_of_birth', 'date_of_death']
-    initial = {'date_of_death': '11/06/2020'}
 
 
 class AuthorUpdate(PermissionRequiredMixin, UpdateView):
