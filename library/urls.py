@@ -2,6 +2,7 @@
 Project-level URL configuration for the booklibrary project.
 
 Routes:
+  /                Redirect → /booklibrary/ (home)
   /admin/          Django admin
   /accounts/       Auth views (login, logout, password reset, …)
   /booklibrary/    Main app (namespace: booklibrary)
@@ -14,9 +15,12 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from django.views.generic import RedirectView
 from django.views.static import serve
 
 urlpatterns = [
+    path('', RedirectView.as_view(pattern_name='booklibrary:index', permanent=False)),
+
     path('admin/', admin.site.urls),
 
     # Explicit login entry so reverse('login') resolves without a namespace.

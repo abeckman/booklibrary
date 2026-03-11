@@ -146,6 +146,13 @@ class Book(models.Model):
 class BookInstance(models.Model):
     """A specific physical copy of a book."""
 
+    LOAN_STATUS = [
+        ('a', 'Available'),
+        ('o', 'On loan'),
+        ('r', 'Reserved'),
+        ('l', 'Lost'),
+    ]
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -158,13 +165,19 @@ class BookInstance(models.Model):
         on_delete=models.CASCADE,
         related_name='booklibrary_book_instance_owner',
     )
+    status = models.CharField(
+        max_length=1,
+        choices=LOAN_STATUS,
+        default='a',
+        help_text='Availability of this copy',
+    )
 
     class Meta:
         ordering = ['location']
 
     def __str__(self):
         title = self.book.title if self.book_id else 'No book'
-        return f'{self.id} ({title})'
+        return f'{self.id} ({title}) — {self.get_status_display()}'
 
 
 class Author(models.Model):

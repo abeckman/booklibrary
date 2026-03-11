@@ -43,7 +43,7 @@ class BookAdmin(admin.ModelAdmin):
 
 @admin.register(BookInstance)
 class BookInstanceAdmin(admin.ModelAdmin):
-    """BookInstance admin: filterable by location."""
+    """BookInstance admin: filterable by location and status."""
 
-    list_display = ("book", "id")
-    list_filter = ("location",)
+    list_display = ("book", "id", "status", "location")
+    list_filter = ("status", "location")

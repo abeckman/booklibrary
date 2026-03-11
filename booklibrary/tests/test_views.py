@@ -700,9 +700,16 @@ class TestBookInstanceOwnerViews:
 @pytest.mark.django_db
 class TestGetIpView:
 
-    def test_returns_remote_addr(self, rf):
+    def test_authenticated_returns_remote_addr(self, rf, user):
         request = rf.get("/booklibrary/ip/", REMOTE_ADDR="192.168.1.1")
-        setup_request(request)
+        setup_request(request, user=user)
         response = get_ip(request)
         assert response.status_code == 200
         assert b"192.168.1.1" in response.content
+
+    def test_anonymous_redirects_to_login(self, rf):
+        request = rf.get("/booklibrary/ip/")
+        setup_request(request, user=AnonymousUser())
+        response = get_ip(request)
+        assert response.status_code == 302
+        assert "/accounts/login/" in response["Location"]

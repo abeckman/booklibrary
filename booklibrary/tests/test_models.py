@@ -450,8 +450,29 @@ class TestBookInstance:
 
     def test_str_representation(self):
         book = BookFactory(title="Foundation")
-        bi = BookInstanceFactory(book=book)
-        assert str(bi) == f"{bi.id} (Foundation)"
+        bi = BookInstanceFactory(book=book, status='a')
+        assert str(bi) == f"{bi.id} (Foundation) — Available"
+
+    def test_status_defaults_to_available(self):
+        bi = BookInstanceFactory()
+        assert bi.status == 'a'
+
+    def test_status_choices(self):
+        field = BookInstance._meta.get_field('status')
+        codes = [code for code, _ in field.choices]
+        assert set(codes) == {'a', 'o', 'r', 'l'}
+
+    def test_status_on_loan(self):
+        bi = BookInstanceFactory(status='o')
+        assert bi.get_status_display() == 'On loan'
+
+    def test_status_reserved(self):
+        bi = BookInstanceFactory(status='r')
+        assert bi.get_status_display() == 'Reserved'
+
+    def test_status_lost(self):
+        bi = BookInstanceFactory(status='l')
+        assert bi.get_status_display() == 'Lost'
 
     def test_book_cascade_delete(self):
         """Deleting a Book should cascade-delete its BookInstances."""

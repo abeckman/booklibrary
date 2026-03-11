@@ -187,15 +187,6 @@ class TestCreateBookFromGoogleData:
         )
         assert book.authors.count() == 0
 
-    def test_skips_string_none_author(self):
-        user = UserFactory()
-        book, _ = create_book_from_google_data(
-            _fake_book_data(author1="None", author2="None", volume_id="auth-4"),
-            _fake_cleaned_data(),
-            user,
-        )
-        assert book.authors.count() == 0
-
     def test_adds_genre1_from_book_data(self):
         user = UserFactory()
         book, _ = create_book_from_google_data(

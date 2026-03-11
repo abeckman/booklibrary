@@ -215,7 +215,12 @@ class BookSearchView(TemplateView):
         })
 
     def _fetch_books(self, request, query):
-        """Call Google Books API, message any errors, and return (books, total)."""
+        """Call Google Books API, message any errors, and return (books, total).
+
+        Results are stored in the session (see post()).  Each result is a
+        ~12-key dict from _parse_volume; descriptions can be several hundred
+        bytes each.  Keep max_results modest to avoid inflating session size.
+        """
         try:
             books, total = search_books(query, max_results=10)
         except GoogleBooksQuotaError:
@@ -438,11 +443,11 @@ class BookDelete(BookOwnerQuerysetMixin, PermissionRequiredMixin, DeleteView):
 
 
 class BookInstanceUpdate(OwnerUpdateView):
-    """Update the location of a physical copy (owner only)."""
+    """Update the location and status of a physical copy (owner only)."""
 
     model = BookInstance
     success_url = reverse_lazy('booklibrary:books')
-    fields = ['location']
+    fields = ['location', 'status']
 
 
 class BookInstanceDelete(OwnerDeleteView):
@@ -452,6 +457,7 @@ class BookInstanceDelete(OwnerDeleteView):
     success_url = reverse_lazy('booklibrary:books')
 
 
+@login_required
 def get_ip(request):
     """Return the client's IP address as a plain-text response (diagnostic utility)."""
     return HttpResponse(request.META['REMOTE_ADDR'])
