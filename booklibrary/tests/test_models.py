@@ -344,8 +344,10 @@ class TestBook:
     def test_display_genre_truncates_at_three(self):
         genres = [GenreFactory(name=n) for n in ["A", "B", "C", "D"]]
         book = BookFactory(genre=genres)
-        parts = book.display_genre().split(", ")
-        assert len(parts) == 3
+        result = book.display_genre()
+        parts = result.split(", ")
+        assert len(parts) == 4  # three names + ellipsis token
+        assert parts[-1] == "\u2026"
 
     def test_display_genre_short_description(self):
         assert Book.display_genre.short_description == "Genre"
@@ -372,8 +374,10 @@ class TestBook:
     def test_display_authors_truncates_at_three(self):
         authors = [AuthorFactory(last_name=f"Author{i}") for i in range(4)]
         book = BookFactory(authors=authors)
-        parts = book.display_authors().split(", ")
-        assert len(parts) == 3
+        result = book.display_authors()
+        parts = result.split(", ")
+        assert len(parts) == 4  # three names + ellipsis token
+        assert parts[-1] == "\u2026"
 
     def test_display_authors_short_description(self):
         assert Book.display_authors.short_description == "Authors"

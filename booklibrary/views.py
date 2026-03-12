@@ -193,12 +193,15 @@ class BookSearchView(TemplateView):
 
     template_name = 'booklibrary/book_search.html'
 
+    def get_form(self, data=None):
+        return SearchForm(data)
+
     def get_context_data(self, **kwargs):
-        kwargs.setdefault('form', SearchForm())
+        kwargs.setdefault('form', self.get_form())
         return super().get_context_data(**kwargs)
 
     def post(self, request):
-        form = SearchForm(request.POST)
+        form = self.get_form(request.POST)
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(form=form))
 

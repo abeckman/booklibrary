@@ -121,13 +121,17 @@ class Book(models.Model):
 
     def display_genre(self):
         """Return up to three genre names as a comma-separated string (used in admin)."""
-        return ', '.join(genre.name for genre in self.genre.all()[:3])
+        items = list(self.genre.all()[:4])
+        names = ', '.join(g.name for g in items[:3])
+        return names + ', \u2026' if len(items) > 3 else names
 
     display_genre.short_description = 'Genre'
 
     def display_authors(self):
         """Return up to three author last names as a comma-separated string (used in admin)."""
-        return ', '.join(author.last_name for author in self.authors.all()[:3])
+        items = list(self.authors.all()[:4])
+        names = ', '.join(a.last_name for a in items[:3])
+        return names + ', \u2026' if len(items) > 3 else names
 
     display_authors.short_description = 'Authors'
 
